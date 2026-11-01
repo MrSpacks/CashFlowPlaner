@@ -1,6 +1,6 @@
 // Простой service worker: делает приложение устанавливаемым и
 // показывает последние открытые страницы без интернета.
-const CACHE = "cfp-v1";
+const CACHE = "cfp-v2";
 const OFFLINE_URLS = ["/"];
 
 self.addEventListener("install", (event) => {

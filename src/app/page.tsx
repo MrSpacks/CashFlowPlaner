@@ -1,87 +1,82 @@
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
-import { addMonths, buildForecast, formatMoney, monthKey, monthLabel } from "@/lib/forecast";
+import { Card, btnCls } from "@/components/ui";
+import { getI18n } from "@/i18n/server";
+import { requireUser } from "@/lib/auth";
+import { buildUserForecast } from "@/lib/finance";
+import { formatDate, formatMoney, monthLabel } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
 
-// Демо-данные, пока нет входа и ввода своих данных.
-function demo() {
-  const start = monthKey(new Date());
-  const m = (n: number) => addMonths(start, n);
-  return buildForecast({
-    startBalance: 18000,
-    startMonth: start,
-    months: 6,
-    cushion: 5000,
-    fixedMonthly: 24000,
-    incomes: [
-      { month: m(0), amount: 41000, actual: true },
-      { month: m(1), amount: 38000, actual: false },
-      { month: m(2), amount: 43000, actual: false },
-      { month: m(3), amount: 40000, actual: false },
-      { month: m(4), amount: 42000, actual: false },
-    ],
-    payments: [
-      { month: m(0), amount: 2500, title: "Зубной", movable: false },
-      { month: m(1), amount: 1500, title: "Подарок Пете", movable: false },
-      { month: m(1), amount: 14000, title: "Билеты в Италию", movable: true },
-      { month: m(2), amount: 22000, title: "Жильё в Италии (моя доля)", movable: false },
-      { month: m(2), amount: 6000, title: "Новый телефон", movable: true },
-      { month: m(3), amount: 9000, title: "Еда и транспорт в поездке", movable: false },
-    ],
-    refunds: [{ month: m(3), amount: 7000 }],
-  });
-}
-
 const stateStyle = {
-  ok: { ring: "ring-emerald-200", badge: "bg-emerald-100 text-emerald-700", label: "В плюсе" },
-  tight: { ring: "ring-amber-200", badge: "bg-amber-100 text-amber-700", label: "Впритык" },
-  negative: { ring: "ring-rose-300", badge: "bg-rose-100 text-rose-700", label: "Не хватает" },
+  ok: { ring: "ring-emerald-200", badge: "bg-emerald-100 text-emerald-700" },
+  tight: { ring: "ring-amber-200", badge: "bg-amber-100 text-amber-700" },
+  negative: { ring: "ring-rose-300", badge: "bg-rose-100 text-rose-700" },
 } as const;
 
-export default function ForecastPage() {
-  const months = demo();
+export default async function ForecastPage() {
+  const user = await requireUser();
+  const { t, intl } = await getI18n();
+  const f = await buildUserForecast(user.id);
+  const money = (n: number) => formatMoney(n, f.base, intl);
+
+  if (f.isEmpty) {
+    return (
+      <>
+        <PageHeader title={t.forecast.title} subtitle={t.forecast.subtitle} />
+        <div className="px-4">
+          <Card>
+            <h2 className="text-lg font-semibold">{t.forecast.setupTitle}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t.forecast.setupText}</p>
+            <div className="mt-4 grid gap-2">
+              <Link href="/more/balance" className={btnCls}>1. {t.more.balance}</Link>
+              <Link href="/more/income" className={btnCls}>2. {t.more.incomes}</Link>
+              <Link href="/more/expenses" className={btnCls}>3. {t.more.fixed}</Link>
+            </div>
+          </Card>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
-      <PageHeader title="Прогноз" subtitle="Сколько придёт, сколько уйдёт и что останется" />
-      <div className="mx-4 mb-4 rounded-xl bg-sky-50 px-3 py-2 text-xs text-sky-800">
-        Сейчас показаны демо-данные. После входа здесь будут ваши доходы и события.
-      </div>
-
+      <PageHeader
+        title={t.forecast.title}
+        subtitle={
+          f.snapshot
+            ? t.forecast.now(formatMoney(Number(f.snapshot.amount), f.snapshot.currency, intl), formatDate(f.snapshot.asOfDate, intl))
+            : t.forecast.subtitle
+        }
+      />
       <ul className="space-y-3 px-4">
-        {months.map((mo) => {
+        {f.months.map((mo) => {
           const s = stateStyle[mo.state];
           return (
             <li key={mo.month} className={`rounded-2xl bg-white p-4 shadow-sm ring-1 ${s.ring}`}>
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold">{monthLabel(mo.month)}</h2>
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${s.badge}`}>{s.label}</span>
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-semibold">{monthLabel(mo.month, t.months)}</h2>
+                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${s.badge}`}>{t.forecast[mo.state]}</span>
               </div>
-
               <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
-                <div>
-                  <dt className="text-slate-500">Придёт</dt>
-                  <dd className="font-medium text-emerald-700">
-                    {mo.incomeMissing ? <span className="text-amber-600">не указано</span> : formatMoney(mo.income + mo.refunds)}
-                  </dd>
+                <div className="min-w-0">
+                  <dt className="text-slate-500">{t.forecast.incoming}</dt>
+                  <dd className="truncate font-medium text-emerald-700">{money(mo.income + mo.refunds)}</dd>
+                  {mo.incomeMissing && (
+                    <dd className="text-xs text-amber-600">
+                      <Link href="/more/income">{t.forecast.notSet}</Link>
+                    </dd>
+                  )}
                 </div>
-                <div>
-                  <dt className="text-slate-500">Уйдёт</dt>
-                  <dd className="font-medium text-slate-800">{formatMoney(mo.fixed + mo.eventPayments)}</dd>
+                <div className="min-w-0">
+                  <dt className="text-slate-500">{t.forecast.outgoing}</dt>
+                  <dd className="truncate font-medium text-slate-800">{money(mo.fixed + mo.eventPayments)}</dd>
                 </div>
-                <div className="text-right">
-                  <dt className="text-slate-500">Итог</dt>
-                  <dd className={`font-bold ${mo.closing < 0 ? "text-rose-600" : "text-slate-900"}`}>
-                    {formatMoney(mo.closing)}
-                  </dd>
+                <div className="min-w-0 text-right">
+                  <dt className="text-slate-500">{t.forecast.total}</dt>
+                  <dd className={`truncate font-bold ${mo.closing < 0 ? "text-rose-600" : "text-slate-900"}`}>{money(mo.closing)}</dd>
                 </div>
               </dl>
-
-              {mo.movable.length > 0 && (
-                <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                  Можно перенести: {mo.movable.map((x) => `${x.title} (${formatMoney(x.amount)})`).join(", ")}
-                </p>
-              )}
             </li>
           );
         })}

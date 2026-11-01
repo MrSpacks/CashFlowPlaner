@@ -1,0 +1,118 @@
+import { addIncomeSource, deleteIncomeSource, saveIncomeMonth } from "@/app/actions";
+import PageHeader from "@/components/PageHeader";
+import { BackLink, Card, CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
+import { getI18n } from "@/i18n/server";
+import { requireUser } from "@/lib/auth";
+import { getIncomeData, getProfile } from "@/lib/finance";
+import { addMonths, formatMoney, monthLabel, todayISO } from "@/lib/forecast";
+
+export const dynamic = "force-dynamic";
+
+const MONTHS_SHOWN = 6;
+
+export default async function IncomePage() {
+  const user = await requireUser();
+  const { t, intl } = await getI18n();
+  const [profile, { sources, rows }] = await Promise.all([getProfile(user.id), getIncomeData(user.id)]);
+  const start = todayISO().slice(0, 7);
+  const months = Array.from({ length: MONTHS_SHOWN }, (_, i) => addMonths(start, i));
+  const smallInput =
+    "w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-emerald-500";
+
+  return (
+    <>
+      <BackLink href="/more" label={t.more.title} />
+      <PageHeader title={t.income.title} subtitle={t.income.hint} />
+      <div className="space-y-4 px-4">
+        {sources.length === 0 && <p className="text-sm text-slate-500">{t.income.empty}</p>}
+
+        {sources.map((s) => (
+          <Card key={s.id}>
+            <div className="mb-3 flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="truncate font-semibold">{s.name}</h2>
+                <p className="text-xs text-slate-500">
+                  {s.isFixed && s.defaultAmount
+                    ? `${t.income.fixed}: ${formatMoney(Number(s.defaultAmount), s.currency, intl)}`
+                    : s.currency}
+                  {s.payDay ? ` · ${t.income.payDay}: ${s.payDay}` : ""}
+                </p>
+              </div>
+              <form action={deleteIncomeSource}>
+                <input type="hidden" name="id" value={s.id} />
+                <button className="text-xs text-slate-400 active:text-rose-600">{t.income.deleteSource}</button>
+              </form>
+            </div>
+
+            <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+              <span />
+              <span>{t.income.expected}</span>
+              <span>{t.income.actual}</span>
+              <span />
+            </div>
+            <div className="space-y-1.5">
+              {months.map((m) => {
+                const row = rows.find((r) => r.sourceId === s.id && r.month.startsWith(m));
+                const auto = !row?.expectedAmount && s.isFixed && s.defaultAmount;
+                return (
+                  <form key={m} action={saveIncomeMonth} className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-2">
+                    <input type="hidden" name="sourceId" value={s.id} />
+                    <input type="hidden" name="month" value={m} />
+                    <span className="truncate text-sm">{monthLabel(m, t.months).replace(/ \d{4}$/, "")}</span>
+                    <input
+                      name="expected"
+                      inputMode="decimal"
+                      defaultValue={row?.expectedAmount ? Number(row.expectedAmount) : ""}
+                      placeholder={auto ? `${Number(s.defaultAmount)} ${t.income.autoFilled}` : ""}
+                      className={smallInput}
+                    />
+                    <input
+                      name="actual"
+                      inputMode="decimal"
+                      defaultValue={row?.actualAmount ? Number(row.actualAmount) : ""}
+                      className={smallInput}
+                    />
+                    <button aria-label={t.common.save} className="rounded-lg bg-emerald-600 p-1.5 text-white active:bg-emerald-700">
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                        <path d="M5 12l5 5L20 7" />
+                      </svg>
+                    </button>
+                  </form>
+                );
+              })}
+            </div>
+          </Card>
+        ))}
+
+        <Card>
+          <h2 className="mb-3 font-semibold">{t.income.addSource}</h2>
+          <form action={addIncomeSource} className="space-y-3">
+            <div>
+              <label className={labelCls}>{t.income.name}</label>
+              <input name="name" required placeholder={t.income.placeholder} className={inputCls} />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={labelCls}>{t.income.payDay}</label>
+                <input name="payDay" type="number" min={1} max={31} inputMode="numeric" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>{t.common.currency}</label>
+                <CurrencySelect defaultValue={profile.baseCurrency} />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="isFixed" className="h-5 w-5 accent-emerald-600" />
+              {t.income.fixed}
+            </label>
+            <div>
+              <label className={labelCls}>{t.income.defaultAmount}</label>
+              <input name="amount" inputMode="decimal" className={inputCls} />
+            </div>
+            <button className={`${btnCls} w-full`}>{t.common.add}</button>
+          </form>
+        </Card>
+      </div>
+    </>
+  );
+}

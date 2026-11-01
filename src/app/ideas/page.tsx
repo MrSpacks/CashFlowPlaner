@@ -1,12 +1,17 @@
 import PageHeader from "@/components/PageHeader";
+import { getI18n } from "@/i18n/server";
+import { requireUser } from "@/lib/auth";
 
-export default function IdeasPage() {
+export const dynamic = "force-dynamic";
+
+export default async function IdeasPage() {
+  await requireUser();
+  const { t } = await getI18n();
   return (
     <>
-      <PageHeader title="Идеи" subtitle="События без даты: «когда-нибудь хотим…»" />
+      <PageHeader title={t.ideas.title} subtitle={t.ideas.subtitle} />
       <div className="mx-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
-        Здесь будут идеи поездок и покупок. Любую идею можно будет одним нажатием превратить в событие с датой и
-        бюджетом.
+        {t.ideas.empty}
       </div>
     </>
   );

@@ -1,26 +1,45 @@
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
+import { getI18n } from "@/i18n/server";
+import { requireUser } from "@/lib/auth";
 
-const options = [
-  { title: "Событие", text: "Поездка, день рождения, врач, покупка" },
-  { title: "Трата", text: "Статья расхода внутри события" },
-  { title: "Доход", text: "Зарплата или другое поступление за месяц" },
-  { title: "Постоянный расход", text: "Аренда, коммуналка, подписки" },
-];
+export const dynamic = "force-dynamic";
 
-export default function AddPage() {
+export default async function AddPage() {
+  await requireUser();
+  const { t } = await getI18n();
+  const options = [
+    { item: t.add.event, href: null },
+    { item: t.add.expense, href: null },
+    { item: t.add.income, href: "/more/income" },
+    { item: t.add.fixed, href: "/more/expenses" },
+  ];
+
   return (
     <>
-      <PageHeader title="Добавить" />
+      <PageHeader title={t.add.title} />
       <ul className="space-y-2 px-4">
-        {options.map((o) => (
-          <li key={o.title} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 opacity-70">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">{o.title}</span>
-              <span className="text-xs text-slate-400">скоро</span>
-            </div>
-            <p className="mt-0.5 text-sm text-slate-500">{o.text}</p>
-          </li>
-        ))}
+        {options.map(({ item: [title, text], href }) => {
+          const body = (
+            <>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{title}</span>
+                {!href && <span className="text-xs text-slate-400">{t.common.soon}</span>}
+              </div>
+              <p className="mt-0.5 text-sm text-slate-500">{text}</p>
+            </>
+          );
+          const cls = "block rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200";
+          return (
+            <li key={title}>
+              {href ? (
+                <Link href={href} className={`${cls} active:bg-slate-50`}>{body}</Link>
+              ) : (
+                <div className={`${cls} opacity-60`}>{body}</div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </>
   );

@@ -2,10 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import RegisterSW from "@/components/RegisterSW";
+import { getI18n } from "@/i18n/server";
 
 export const metadata: Metadata = {
   title: "CashFlowPlaner",
-  description: "Планирование событий, трат и денег по месяцам",
+  description: "Events, expenses and money planning by month",
   applicationName: "CashFlowPlaner",
   appleWebApp: {
     capable: true,
@@ -28,12 +29,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { locale, t } = await getI18n();
   return (
-    <html lang="ru">
+    <html lang={locale}>
       <body className="min-h-dvh antialiased">
         <main className="mx-auto min-h-dvh max-w-xl pb-28">{children}</main>
-        <BottomNav />
+        <BottomNav labels={t.nav} />
         <RegisterSW />
       </body>
     </html>

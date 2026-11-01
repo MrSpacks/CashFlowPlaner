@@ -1,9 +1,14 @@
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
 
+// Один пул на процесс (в dev переживает hot-reload).
+const g = globalThis as unknown as { __cfpPool?: Pool };
+const pool = g.__cfpPool ?? new Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
+g.__cfpPool = pool;
+
+export const db = drizzle(pool, { schema });
+
 export function getDb() {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set");
-  return drizzle(neon(url), { schema });
+  return db;
 }
