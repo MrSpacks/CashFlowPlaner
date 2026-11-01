@@ -8,12 +8,16 @@ export default function AuthForm({
   t,
   error,
   google,
+  next,
 }: {
   mode: "login" | "register";
   t: Dict["auth"];
   error?: string;
   google: boolean;
+  next?: string;
 }) {
+  const nextField = next && next.startsWith("/") ? <input type="hidden" name="next" value={next} /> : null;
+  const q = next && next.startsWith("/") ? `?next=${encodeURIComponent(next)}` : "";
   const isLogin = mode === "login";
   const errText =
     error === "invalid" ? t.errInvalid : error === "exists" ? t.errExists : error === "password" ? t.passwordHint : error ? t.errGeneric : null;
@@ -30,6 +34,7 @@ export default function AuthForm({
       {errText && <p className="mb-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{errText}</p>}
 
       <form action={isLogin ? signInAction : signUpAction} className="space-y-4">
+        {nextField}
         {!isLogin && (
           <div>
             <label className={labelCls} htmlFor="name">{t.name}</label>
@@ -66,6 +71,7 @@ export default function AuthForm({
             <span className="h-px flex-1 bg-slate-200" />
           </div>
           <form action={signInGoogleAction}>
+            {nextField}
             <button type="submit" className={`${btnGhostCls} w-full gap-2`}>
               <svg viewBox="0 0 48 48" className="h-5 w-5">
                 <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
@@ -81,7 +87,7 @@ export default function AuthForm({
 
       <p className="mt-8 text-center text-sm text-slate-500">
         {isLogin ? t.noAccount : t.haveAccount}{" "}
-        <Link href={isLogin ? "/register" : "/login"} className="font-medium text-emerald-700">
+        <Link href={`${isLogin ? "/register" : "/login"}${q}`} className="font-medium text-emerald-700">
           {isLogin ? t.register : t.login}
         </Link>
       </p>

@@ -1,10 +1,13 @@
 import { and, asc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
-import { calendarMembers, calendars, events, expenseItems, payments } from "@/db/schema";
+import { calendarMembers, calendars, eventParticipants, events, expenseItems, expenseShares, payments, settlements } from "@/db/schema";
 
 export type EventRow = typeof events.$inferSelect;
 export type ItemRow = typeof expenseItems.$inferSelect;
 export type PaymentRow = typeof payments.$inferSelect;
+export type ParticipantRow = typeof eventParticipants.$inferSelect;
+export type ShareRow = typeof expenseShares.$inferSelect;
+export type SettlementRow = typeof settlements.$inferSelect;
 
 export const EVENT_TYPES = ["trip", "birthday", "health", "purchase", "other"] as const;
 export const EVENT_STATUSES = ["idea", "planned", "confirmed", "done", "cancelled"] as const;
@@ -47,35 +50,45 @@ export async function getDefaultCalendarId(userId: string, name = "Calendar"): P
   return created.id;
 }
 
-/** Событие, если у пользователя есть к нему доступ. Личные события видит только автор. */
+/** id событий, где пользователь — участник (в т.ч. по приглашению). */
+async function participantEventIds(userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: eventParticipants.eventId })
+    .from(eventParticipants)
+    .where(eq(eventParticipants.userId, userId));
+  return [...new Set(rows.map((r) => r.id))];
+}
+
+/** Событие, если у пользователя есть к нему доступ: участник события или член календаря
+ *  (личные события календаря видит только автор). */
 export async function getEventForUser(eventId: string, userId: string): Promise<EventRow | null> {
   if (!/^[0-9a-f-]{36}$/i.test(eventId)) return null;
-  const ids = await getUserCalendarIds(userId);
-  if (ids.length === 0) return null;
-  const [ev] = await db
-    .select()
-    .from(events)
-    .where(and(eq(events.id, eventId), inArray(events.calendarId, ids)))
-    .limit(1);
+  const [ev] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
   if (!ev) return null;
-  if (ev.visibility === "private" && ev.createdBy !== userId) return null;
-  return ev;
+  if (ev.createdBy === userId) return ev;
+  const [p] = await db
+    .select({ id: eventParticipants.id })
+    .from(eventParticipants)
+    .where(and(eq(eventParticipants.eventId, ev.id), eq(eventParticipants.userId, userId)))
+    .limit(1);
+  if (p) return ev;
+  if (ev.visibility === "private") return null;
+  const ids = await getUserCalendarIds(userId);
+  return ids.includes(ev.calendarId) ? ev : null;
 }
 
 export async function listUserEvents(userId: string): Promise<EventRow[]> {
-  const ids = await getUserCalendarIds(userId);
-  if (ids.length === 0) return [];
-  const rows = await db
+  const [calIds, partIds] = await Promise.all([getUserCalendarIds(userId), participantEventIds(userId)]);
+  const conds = [];
+  if (calIds.length)
+    conds.push(and(inArray(events.calendarId, calIds), or(eq(events.visibility, "calendar"), eq(events.createdBy, userId))));
+  if (partIds.length) conds.push(inArray(events.id, partIds));
+  if (conds.length === 0) return [];
+  return db
     .select()
     .from(events)
-    .where(
-      and(
-        inArray(events.calendarId, ids),
-        or(eq(events.visibility, "calendar"), eq(events.createdBy, userId)),
-      ),
-    )
+    .where(or(...conds))
     .orderBy(asc(events.startDate), asc(events.createdAt));
-  return rows;
 }
 
 export async function getItemsWithPayments(eventIds: string[]) {

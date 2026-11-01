@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { balanceSnapshots, fixedExpenses, incomes, incomeSources, profiles } from "@/db/schema";
 import { getItemsWithPayments, listUserEvents, shiftYear } from "./events";
+import { getSplitData, payerOf, sharesOf } from "./split";
 import { addMonths, dateInMonth, todayISO, type ForecastMonth } from "./forecast";
 
 /** Курсы относительно базовой валюты (1 base = rate × quote). Раз в сутки, данные ЕЦБ. */
@@ -68,6 +69,7 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
   ]);
   const evs = allEvents.filter((e) => e.status !== "cancelled" && e.status !== "idea");
   const { items, pays } = await getItemsWithPayments(evs.map((e) => e.id));
+  const { parts, shares, setts } = await getSplitData(evs.map((e) => e.id));
 
   const needRates = [
     snap?.currency,
@@ -75,6 +77,7 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
     ...fixed.map((f) => f.currency),
     ...items.map((i) => i.currency),
     ...pays.map((p) => p.currency),
+    ...setts.map((x) => x.currency),
   ].some((c) => c && c !== base);
   const rates = needRates ? await getRates(base) : {};
   const toBase = (amount: number, cur: string) => (cur === base || !rates[cur] ? amount : amount / rates[cur]);
@@ -85,32 +88,75 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
   const horizonEnd = `${addMonths(startMonth, monthsAhead)}-01`;
   let opening = snap ? toBase(Number(snap.amount), snap.currency) : 0;
 
-  // Оттоки по событиям: уже сделанные оплаты (после даты баланса) + то, что ещё предстоит оплатить.
+  // Движение денег по событиям.
+  // Своё: оплаты, которые делаю я (после даты баланса) + то, что мне ещё предстоит оплатить.
+  // Общие события: моя доля в чужих оплатах — долг (отток), доли других в моих оплатах — возврат (приток).
   const evById = new Map(evs.map((e) => [e.id, e]));
-  const outflows: { date: string; amount: number; title: string; movable: boolean }[] = [];
-  for (const it of items) {
-    const ev = evById.get(it.eventId);
-    if (!ev) continue;
-    const title = `${ev.title} — ${it.title}`;
+  type Flow = { date: string; amount: number; title: string; movable: boolean };
+  const outflows: Flow[] = [];
+  const inflows: Flow[] = [];
+  const later = (d: string | null | undefined) => (!d || d < today ? today : d);
+
+  for (const ev of evs) {
+    const evParts = parts.filter((p) => p.eventId === ev.id);
+    const me = evParts.find((p) => p.userId === userId);
+    const shared = evParts.length > 1 && !!me;
     const movable = ev.priority === "movable";
-    const itPays = pays.filter((p) => p.expenseItemId === it.id);
-    let paidSame = 0;
-    for (const p of itPays) {
-      if (p.currency === it.currency) paidSame += Number(p.amount);
-      if (p.paidAt > cutoff) outflows.push({ date: p.paidAt, amount: toBase(Number(p.amount), p.currency), title, movable: false });
-    }
-    const remaining = it.status === "paid" ? 0 : Math.max(Number(it.amount) - paidSame, 0);
-    const when = it.dueDate ?? ev.startDate;
-    if (remaining > 0 && when) {
-      // Неоплаченное ещё не ушло с баланса: просроченное — в текущий месяц.
-      outflows.push({ date: when < today ? today : when, amount: toBase(remaining, it.currency), title, movable });
-    }
-    if (ev.recurrence === "yearly" && when) {
-      for (let y = Number(when.slice(0, 4)) + 1; ; y++) {
-        const d = shiftYear(when, y);
-        if (d >= horizonEnd) break;
-        if (d >= today) outflows.push({ date: d, amount: toBase(Number(it.amount), it.currency), title, movable });
+    const settleDate = later(ev.endDate ?? ev.startDate);
+    let expectIn = 0; // в валюте base
+    let expectOut = 0;
+
+    for (const it of items.filter((i) => i.eventId === ev.id)) {
+      const title = `${ev.title} — ${it.title}`;
+      const payer = payerOf(it, ev, parts);
+      const iPay = !shared || payer === me?.id;
+      const when = it.dueDate ?? ev.startDate;
+
+      if (shared) {
+        const sh = sharesOf(it, evParts, shares);
+        const mine = sh.get(me!.id) ?? 0;
+        if (iPay) expectIn += toBase(Number(it.amount) - mine, it.currency);
+        else expectOut += toBase(mine, it.currency);
       }
+      if (!iPay) continue;
+
+      const itPays = pays.filter((p) => p.expenseItemId === it.id);
+      let paidSame = 0;
+      for (const p of itPays) {
+        if (p.currency === it.currency) paidSame += Number(p.amount);
+        if (p.paidAt > cutoff) outflows.push({ date: p.paidAt, amount: toBase(Number(p.amount), p.currency), title, movable: false });
+      }
+      const remaining = it.status === "paid" ? 0 : Math.max(Number(it.amount) - paidSame, 0);
+      if (remaining > 0 && when) {
+        // Неоплаченное ещё не ушло с баланса: просроченное — в текущий месяц.
+        outflows.push({ date: later(when), amount: toBase(remaining, it.currency), title, movable });
+      }
+      if (ev.recurrence === "yearly" && when && !shared) {
+        for (let y = Number(when.slice(0, 4)) + 1; ; y++) {
+          const d = shiftYear(when, y);
+          if (d >= horizonEnd) break;
+          if (d >= today) outflows.push({ date: d, amount: toBase(Number(it.amount), it.currency), title, movable });
+        }
+      }
+    }
+
+    if (shared) {
+      // Уже сделанные возвраты уменьшают ожидаемые и (если после даты баланса) сами двигают деньги.
+      for (const st of setts.filter((x) => x.eventId === ev.id)) {
+        const v = toBase(Number(st.amount), st.currency);
+        const date = st.settledAt ?? today;
+        if (st.toParticipantId === me!.id) {
+          expectIn -= v;
+          if (date > cutoff) inflows.push({ date, amount: v, title: ev.title, movable: false });
+        } else if (st.fromParticipantId === me!.id) {
+          expectOut -= v;
+          if (date > cutoff) outflows.push({ date, amount: v, title: ev.title, movable: false });
+        }
+      }
+      // Взаимозачёт внутри события: двигается только разница.
+      const net = expectIn - expectOut;
+      if (net > 0.5) inflows.push({ date: settleDate, amount: net, title: ev.title, movable: false });
+      else if (net < -0.5) outflows.push({ date: settleDate, amount: -net, title: ev.title, movable });
     }
   }
 
@@ -141,7 +187,8 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
 
     const monthOut = outflows.filter((o) => o.date.startsWith(month));
     const eventPayments = monthOut.reduce((a, o) => a + o.amount, 0);
-    const closing = opening + income - fixedSum - eventPayments;
+    const refunds = inflows.filter((o) => o.date.startsWith(month)).reduce((a, o) => a + o.amount, 0);
+    const closing = opening + income - fixedSum - eventPayments + refunds;
     const state = closing < 0 ? "negative" : closing < cushion ? "tight" : "ok";
     result.push({
       month,
@@ -150,7 +197,7 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
       incomeMissing,
       fixed: fixedSum,
       eventPayments,
-      refunds: 0,
+      refunds,
       closing,
       state,
       movable: state === "ok" ? [] : monthOut.filter((o) => o.movable).map(({ title, amount }) => ({ title, amount })),

@@ -5,11 +5,24 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { balanceSnapshots, events, expenseItems, fixedExpenses, incomes, incomeSources, payments } from "@/db/schema";
+import {
+  balanceSnapshots,
+  eventParticipants,
+  events,
+  expenseItems,
+  expenseShares,
+  fixedExpenses,
+  incomes,
+  incomeSources,
+  payments,
+  settlements,
+} from "@/db/schema";
 import { isLocale } from "@/i18n/dictionaries";
 import { auth, requireUser } from "@/lib/auth";
 import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, getEventForUser } from "@/lib/events";
 import { CURRENCIES, parseAmount, todayISO } from "@/lib/forecast";
+import { ensureCreatorParticipant, payerOf } from "@/lib/split";
+import { randomBytes } from "node:crypto";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 const currency = (fd: FormData) => {
@@ -19,6 +32,11 @@ const currency = (fd: FormData) => {
 const day = (fd: FormData, k: string) => {
   const n = parseInt(str(fd, k), 10);
   return Number.isFinite(n) && n >= 1 && n <= 31 ? n : null;
+};
+/** Куда вернуть после входа: только внутренние пути. */
+const safeNext = (fd: FormData) => {
+  const n = String(fd.get("next") ?? "");
+  return n.startsWith("/") && !n.startsWith("//") ? n : "/";
 };
 const errorCode = (e: unknown) =>
   String((e as { body?: { code?: string } })?.body?.code ?? (e as Error)?.message ?? "");
@@ -40,8 +58,9 @@ export async function signInAction(fd: FormData) {
   } catch (e) {
     err = /INVALID|PASSWORD|NOT_FOUND|CREDENTIAL/i.test(errorCode(e)) ? "invalid" : "generic";
   }
-  if (err) redirect(`/login?error=${err}`);
-  redirect("/");
+  const next = safeNext(fd);
+  if (err) redirect(`/login?error=${err}${next !== "/" ? `&next=${encodeURIComponent(next)}` : ""}`);
+  redirect(next);
 }
 
 export async function signUpAction(fd: FormData) {
@@ -55,12 +74,13 @@ export async function signUpAction(fd: FormData) {
     const code = errorCode(e);
     err = /EXIST/i.test(code) ? "exists" : /PASSWORD/i.test(code) ? "password" : "generic";
   }
-  if (err) redirect(`/register?error=${err}`);
-  redirect("/");
+  const next = safeNext(fd);
+  if (err) redirect(`/register?error=${err}${next !== "/" ? `&next=${encodeURIComponent(next)}` : ""}`);
+  redirect(next);
 }
 
-export async function signInGoogleAction() {
-  const res = await auth.api.signInSocial({ body: { provider: "google", callbackURL: "/" }, headers: await headers() });
+export async function signInGoogleAction(fd: FormData) {
+  const res = await auth.api.signInSocial({ body: { provider: "google", callbackURL: safeNext(fd) }, headers: await headers() });
   if (res?.url) redirect(res.url);
   redirect("/login?error=generic");
 }
@@ -188,6 +208,7 @@ export async function createEvent(fd: FormData) {
     .insert(events)
     .values({ ...fields, calendarId, createdBy: user.id })
     .returning({ id: events.id });
+  await db.insert(eventParticipants).values({ eventId: ev.id, userId: user.id, displayName: user.name || "—", role: "owner" });
   revalidatePath("/", "layout");
   redirect(`/events/${ev.id}`);
 }
@@ -218,7 +239,7 @@ export async function setEventStatus(fd: FormData) {
 export async function deleteEvent(fd: FormData) {
   const user = await requireUser();
   const ev = await getEventForUser(str(fd, "id"), user.id);
-  if (!ev) return;
+  if (!ev || ev.createdBy !== user.id) return; // удалить может только автор
   await db.delete(events).where(eq(events.id, ev.id));
   revalidatePath("/", "layout");
   redirect("/calendar");
@@ -238,14 +259,28 @@ export async function addExpenseItem(fd: FormData) {
   const amount = parseAmount(fd.get("amount"));
   const title = str(fd, "title").slice(0, 200);
   if (!ev || amount == null || !title) return;
-  await db.insert(expenseItems).values({
-    eventId: ev.id,
-    title,
-    amount: amount.toFixed(2),
-    currency: currency(fd),
-    isEstimate: fd.get("estimate") === "on",
-    dueDate: isoOrNull(fd, "due"),
-  });
+  const parts = await db.select().from(eventParticipants).where(eq(eventParticipants.eventId, ev.id));
+  const payer = parts.find((p) => p.id === str(fd, "payer"));
+  const chosen = fd.getAll("split").map(String).filter((id) => parts.some((p) => p.id === id));
+
+  const [item] = await db
+    .insert(expenseItems)
+    .values({
+      eventId: ev.id,
+      title,
+      amount: amount.toFixed(2),
+      currency: currency(fd),
+      isEstimate: fd.get("estimate") === "on",
+      dueDate: isoOrNull(fd, "due"),
+      paidByParticipantId: payer?.id ?? null,
+    })
+    .returning({ id: expenseItems.id });
+
+  // Делим не на всех — сохраняем, на кого именно (поровну). На всех — без записей,
+  // тогда трата делится и на тех, кто присоединится позже.
+  if (chosen.length > 0 && chosen.length < parts.length) {
+    await db.insert(expenseShares).values(chosen.map((participantId) => ({ expenseItemId: item.id, participantId, shareType: "equal" as const })));
+  }
   revalidatePath("/", "layout");
 }
 
@@ -270,8 +305,11 @@ export async function toggleExpensePaid(fd: FormData) {
     const already = prev.filter((p) => p.currency === it.currency).reduce((a, p) => a + Number(p.amount), 0);
     const rest = Math.max(Number(it.amount) - already, 0);
     if (rest > 0) {
+      const ev = await getEventForUser(it.eventId, user.id);
+      const parts = ev ? await db.select().from(eventParticipants).where(eq(eventParticipants.eventId, ev.id)) : [];
       await db.insert(payments).values({
         expenseItemId: it.id,
+        participantId: ev ? payerOf(it, ev, parts) : null,
         amount: rest.toFixed(2),
         currency: it.currency,
         paidAt: todayISO(),
@@ -279,5 +317,77 @@ export async function toggleExpensePaid(fd: FormData) {
     }
     await db.update(expenseItems).set({ status: "paid", isEstimate: false }).where(eq(expenseItems.id, it.id));
   }
+  revalidatePath("/", "layout");
+}
+
+// ---------- участники ----------
+const newToken = () => randomBytes(18).toString("base64url");
+
+export async function addParticipant(fd: FormData) {
+  const user = await requireUser();
+  const ev = await getEventForUser(str(fd, "eventId"), user.id);
+  const name = str(fd, "name").slice(0, 80);
+  if (!ev || !name) return;
+  await ensureCreatorParticipant(ev, user.id === ev.createdBy ? user.name : "—");
+  await db.insert(eventParticipants).values({ eventId: ev.id, displayName: name, role: "editor", inviteToken: newToken() });
+  revalidatePath(`/events/${ev.id}`);
+}
+
+export async function removeParticipant(fd: FormData) {
+  const user = await requireUser();
+  const [p] = await db.select().from(eventParticipants).where(eq(eventParticipants.id, str(fd, "id"))).limit(1);
+  if (!p) return;
+  const ev = await getEventForUser(p.eventId, user.id);
+  if (!ev || p.userId === ev.createdBy) return; // создателя не удаляем
+  // Траты, которые он оплачивал, переходят на создателя события.
+  await db.update(expenseItems).set({ paidByParticipantId: null }).where(eq(expenseItems.paidByParticipantId, p.id));
+  await db.delete(eventParticipants).where(eq(eventParticipants.id, p.id));
+  revalidatePath(`/events/${ev.id}`);
+}
+
+/** Принять приглашение: гостевое место привязывается к аккаунту. */
+export async function acceptInvite(fd: FormData) {
+  const user = await requireUser();
+  const token = str(fd, "token");
+  const [p] = await db.select().from(eventParticipants).where(eq(eventParticipants.inviteToken, token)).limit(1);
+  if (!p) redirect("/");
+  const [already] = await db
+    .select({ id: eventParticipants.id })
+    .from(eventParticipants)
+    .where(and(eq(eventParticipants.eventId, p.eventId), eq(eventParticipants.userId, user.id)))
+    .limit(1);
+  if (!already && !p.userId) {
+    await db.update(eventParticipants).set({ userId: user.id, inviteToken: null }).where(eq(eventParticipants.id, p.id));
+  }
+  revalidatePath("/", "layout");
+  redirect(`/events/${p.eventId}`);
+}
+
+/** Отметить возврат долга (from → to). */
+export async function addSettlement(fd: FormData) {
+  const user = await requireUser();
+  const ev = await getEventForUser(str(fd, "eventId"), user.id);
+  const amount = parseAmount(fd.get("amount"));
+  if (!ev || amount == null || amount <= 0) return;
+  const parts = await db.select().from(eventParticipants).where(eq(eventParticipants.eventId, ev.id));
+  const from = parts.find((p) => p.id === str(fd, "from"));
+  const to = parts.find((p) => p.id === str(fd, "to"));
+  if (!from || !to || from.id === to.id) return;
+  await db.insert(settlements).values({
+    eventId: ev.id,
+    fromParticipantId: from.id,
+    toParticipantId: to.id,
+    amount: amount.toFixed(2),
+    currency: ev.currency,
+    settledAt: todayISO(),
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function deleteSettlement(fd: FormData) {
+  const user = await requireUser();
+  const [st] = await db.select().from(settlements).where(eq(settlements.id, str(fd, "id"))).limit(1);
+  if (!st || !(await getEventForUser(st.eventId, user.id))) return;
+  await db.delete(settlements).where(eq(settlements.id, st.id));
   revalidatePath("/", "layout");
 }
