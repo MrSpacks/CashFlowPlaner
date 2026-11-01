@@ -5,9 +5,10 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { balanceSnapshots, fixedExpenses, incomes, incomeSources } from "@/db/schema";
+import { balanceSnapshots, events, expenseItems, fixedExpenses, incomes, incomeSources, payments } from "@/db/schema";
 import { isLocale } from "@/i18n/dictionaries";
 import { auth, requireUser } from "@/lib/auth";
+import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, getEventForUser } from "@/lib/events";
 import { CURRENCIES, parseAmount, todayISO } from "@/lib/forecast";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -150,5 +151,133 @@ export async function saveIncomeMonth(fd: FormData) {
     .insert(incomes)
     .values({ sourceId, month: `${month}-01`, ...values })
     .onConflictDoUpdate({ target: [incomes.sourceId, incomes.month], set: values });
+  revalidatePath("/", "layout");
+}
+
+// ---------- события ----------
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const isoOrNull = (fd: FormData, k: string) => (ISO.test(str(fd, k)) ? str(fd, k) : null);
+const pick = <T extends readonly string[]>(v: string, list: T, fallback: T[number]): T[number] =>
+  (list as readonly string[]).includes(v) ? (v as T[number]) : fallback;
+
+function eventFields(fd: FormData) {
+  const start = isoOrNull(fd, "start");
+  let end = isoOrNull(fd, "end");
+  if (start && end && end < start) end = start;
+  const status = pick(str(fd, "status"), EVENT_STATUSES, start ? "planned" : "idea");
+  return {
+    title: str(fd, "title").slice(0, 200),
+    type: pick(str(fd, "type"), EVENT_TYPES, "other"),
+    startDate: start,
+    endDate: end,
+    status,
+    priority: pick(str(fd, "priority"), EVENT_PRIORITIES, "want"),
+    recurrence: fd.get("yearly") === "on" ? ("yearly" as const) : ("none" as const),
+    visibility: fd.get("private") === "on" ? ("private" as const) : ("calendar" as const),
+    currency: currency(fd),
+    notes: str(fd, "notes").slice(0, 2000) || null,
+  };
+}
+
+export async function createEvent(fd: FormData) {
+  const user = await requireUser();
+  const fields = eventFields(fd);
+  if (!fields.title) return;
+  const calendarId = await getDefaultCalendarId(user.id, user.name);
+  const [ev] = await db
+    .insert(events)
+    .values({ ...fields, calendarId, createdBy: user.id })
+    .returning({ id: events.id });
+  revalidatePath("/", "layout");
+  redirect(`/events/${ev.id}`);
+}
+
+export async function updateEvent(fd: FormData) {
+  const user = await requireUser();
+  const ev = await getEventForUser(str(fd, "id"), user.id);
+  if (!ev) return;
+  const fields = eventFields(fd);
+  if (!fields.title) return;
+  await db.update(events).set(fields).where(eq(events.id, ev.id));
+  revalidatePath("/", "layout");
+  redirect(`/events/${ev.id}`);
+}
+
+/** Быстрая смена статуса (например, идея → планирую). */
+export async function setEventStatus(fd: FormData) {
+  const user = await requireUser();
+  const ev = await getEventForUser(str(fd, "id"), user.id);
+  if (!ev) return;
+  await db
+    .update(events)
+    .set({ status: pick(str(fd, "status"), EVENT_STATUSES, ev.status) })
+    .where(eq(events.id, ev.id));
+  revalidatePath("/", "layout");
+}
+
+export async function deleteEvent(fd: FormData) {
+  const user = await requireUser();
+  const ev = await getEventForUser(str(fd, "id"), user.id);
+  if (!ev) return;
+  await db.delete(events).where(eq(events.id, ev.id));
+  revalidatePath("/", "layout");
+  redirect("/calendar");
+}
+
+// ---------- траты события ----------
+async function itemForUser(itemId: string, userId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(itemId)) return null;
+  const [it] = await db.select().from(expenseItems).where(eq(expenseItems.id, itemId)).limit(1);
+  if (!it) return null;
+  return (await getEventForUser(it.eventId, userId)) ? it : null;
+}
+
+export async function addExpenseItem(fd: FormData) {
+  const user = await requireUser();
+  const ev = await getEventForUser(str(fd, "eventId"), user.id);
+  const amount = parseAmount(fd.get("amount"));
+  const title = str(fd, "title").slice(0, 200);
+  if (!ev || amount == null || !title) return;
+  await db.insert(expenseItems).values({
+    eventId: ev.id,
+    title,
+    amount: amount.toFixed(2),
+    currency: currency(fd),
+    isEstimate: fd.get("estimate") === "on",
+    dueDate: isoOrNull(fd, "due"),
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function deleteExpenseItem(fd: FormData) {
+  const user = await requireUser();
+  const it = await itemForUser(str(fd, "id"), user.id);
+  if (!it) return;
+  await db.delete(expenseItems).where(eq(expenseItems.id, it.id));
+  revalidatePath("/", "layout");
+}
+
+/** Оплачено ↔ не оплачено. При оплате записываем платёж сегодняшним днём. */
+export async function toggleExpensePaid(fd: FormData) {
+  const user = await requireUser();
+  const it = await itemForUser(str(fd, "id"), user.id);
+  if (!it) return;
+  if (it.status === "paid") {
+    await db.delete(payments).where(eq(payments.expenseItemId, it.id));
+    await db.update(expenseItems).set({ status: "unpaid" }).where(eq(expenseItems.id, it.id));
+  } else {
+    const prev = await db.select().from(payments).where(eq(payments.expenseItemId, it.id));
+    const already = prev.filter((p) => p.currency === it.currency).reduce((a, p) => a + Number(p.amount), 0);
+    const rest = Math.max(Number(it.amount) - already, 0);
+    if (rest > 0) {
+      await db.insert(payments).values({
+        expenseItemId: it.id,
+        amount: rest.toFixed(2),
+        currency: it.currency,
+        paidAt: todayISO(),
+      });
+    }
+    await db.update(expenseItems).set({ status: "paid", isEstimate: false }).where(eq(expenseItems.id, it.id));
+  }
   revalidatePath("/", "layout");
 }

@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { balanceSnapshots, fixedExpenses, incomes, incomeSources, profiles } from "@/db/schema";
+import { getItemsWithPayments, listUserEvents, shiftYear } from "./events";
 import { addMonths, dateInMonth, todayISO, type ForecastMonth } from "./forecast";
 
 /** Курсы относительно базовой валюты (1 base = rate × quote). Раз в сутки, данные ЕЦБ. */
@@ -59,16 +60,21 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
   const profile = await getProfile(userId);
   const base = profile.baseCurrency ?? "CZK";
   const cushion = Number(profile.cushionAmount ?? 0);
-  const [snap, { sources, rows }, fixed] = await Promise.all([
+  const [snap, { sources, rows }, fixed, allEvents] = await Promise.all([
     getLatestBalance(userId),
     getIncomeData(userId),
     getFixedExpenses(userId),
+    listUserEvents(userId),
   ]);
+  const evs = allEvents.filter((e) => e.status !== "cancelled" && e.status !== "idea");
+  const { items, pays } = await getItemsWithPayments(evs.map((e) => e.id));
 
   const needRates = [
     snap?.currency,
     ...sources.map((s) => s.currency),
     ...fixed.map((f) => f.currency),
+    ...items.map((i) => i.currency),
+    ...pays.map((p) => p.currency),
   ].some((c) => c && c !== base);
   const rates = needRates ? await getRates(base) : {};
   const toBase = (amount: number, cur: string) => (cur === base || !rates[cur] ? amount : amount / rates[cur]);
@@ -76,7 +82,37 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
   const today = todayISO(profile.timezone ?? "Europe/Prague");
   const startMonth = today.slice(0, 7);
   const cutoff = snap?.asOfDate ?? `${addMonths(startMonth, -1)}-31`; // без баланса считаем весь текущий месяц
+  const horizonEnd = `${addMonths(startMonth, monthsAhead)}-01`;
   let opening = snap ? toBase(Number(snap.amount), snap.currency) : 0;
+
+  // Оттоки по событиям: уже сделанные оплаты (после даты баланса) + то, что ещё предстоит оплатить.
+  const evById = new Map(evs.map((e) => [e.id, e]));
+  const outflows: { date: string; amount: number; title: string; movable: boolean }[] = [];
+  for (const it of items) {
+    const ev = evById.get(it.eventId);
+    if (!ev) continue;
+    const title = `${ev.title} — ${it.title}`;
+    const movable = ev.priority === "movable";
+    const itPays = pays.filter((p) => p.expenseItemId === it.id);
+    let paidSame = 0;
+    for (const p of itPays) {
+      if (p.currency === it.currency) paidSame += Number(p.amount);
+      if (p.paidAt > cutoff) outflows.push({ date: p.paidAt, amount: toBase(Number(p.amount), p.currency), title, movable: false });
+    }
+    const remaining = it.status === "paid" ? 0 : Math.max(Number(it.amount) - paidSame, 0);
+    const when = it.dueDate ?? ev.startDate;
+    if (remaining > 0 && when) {
+      // Неоплаченное ещё не ушло с баланса: просроченное — в текущий месяц.
+      outflows.push({ date: when < today ? today : when, amount: toBase(remaining, it.currency), title, movable });
+    }
+    if (ev.recurrence === "yearly" && when) {
+      for (let y = Number(when.slice(0, 4)) + 1; ; y++) {
+        const d = shiftYear(when, y);
+        if (d >= horizonEnd) break;
+        if (d >= today) outflows.push({ date: d, amount: toBase(Number(it.amount), it.currency), title, movable });
+      }
+    }
+  }
 
   const result: ForecastMonth[] = [];
   for (let i = 0; i < monthsAhead; i++) {
@@ -103,18 +139,21 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
       if (dateInMonth(month, f.dayOfMonth) > cutoff) fixedSum += toBase(Number(f.amount), f.currency);
     }
 
-    const closing = opening + income - fixedSum;
+    const monthOut = outflows.filter((o) => o.date.startsWith(month));
+    const eventPayments = monthOut.reduce((a, o) => a + o.amount, 0);
+    const closing = opening + income - fixedSum - eventPayments;
+    const state = closing < 0 ? "negative" : closing < cushion ? "tight" : "ok";
     result.push({
       month,
       opening,
       income,
       incomeMissing,
       fixed: fixedSum,
-      eventPayments: 0,
+      eventPayments,
       refunds: 0,
       closing,
-      state: closing < 0 ? "negative" : closing < cushion ? "tight" : "ok",
-      movable: [],
+      state,
+      movable: state === "ok" ? [] : monthOut.filter((o) => o.movable).map(({ title, amount }) => ({ title, amount })),
     });
     opening = closing;
   }
@@ -123,6 +162,6 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
     base,
     snapshot: snap,
     months: result,
-    isEmpty: !snap && sources.length === 0 && fixed.length === 0,
+    isEmpty: !snap && sources.length === 0 && fixed.length === 0 && items.length === 0,
   };
 }

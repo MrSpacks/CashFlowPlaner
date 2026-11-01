@@ -9,8 +9,8 @@ export default async function AddPage() {
   await requireUser();
   const { t } = await getI18n();
   const options = [
-    { item: t.add.event, href: null },
-    { item: t.add.expense, href: null },
+    { item: t.add.event, href: "/events/new" },
+    { item: t.add.expense, href: "/events" },
     { item: t.add.income, href: "/more/income" },
     { item: t.add.fixed, href: "/more/expenses" },
   ];
