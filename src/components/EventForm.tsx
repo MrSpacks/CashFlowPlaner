@@ -8,8 +8,10 @@ export default function EventForm({
   event,
   defaults,
   baseCurrency,
+  privateLabel,
 }: {
   t: Dict["ev"];
+  privateLabel: string;
   event?: EventRow;
   defaults?: { status?: string; start?: string; type?: string };
   baseCurrency: string;
@@ -83,6 +85,11 @@ export default function EventForm({
           <CurrencySelect defaultValue={event?.currency ?? baseCurrency} />
         </div>
       </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="private" defaultChecked={event?.visibility === "private"} className="h-5 w-5 accent-emerald-600" />
+        🔒 {privateLabel}
+      </label>
 
       <div>
         <label className={labelCls}>{t.notes}</label>

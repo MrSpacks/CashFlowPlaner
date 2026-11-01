@@ -99,6 +99,8 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
 
   for (const ev of evs) {
     const evParts = parts.filter((p) => p.eventId === ev.id);
+    // События общего календаря, где я не участник, мои деньги не трогают.
+    if (ev.createdBy !== userId && !evParts.some((p) => p.userId === userId)) continue;
     const me = evParts.find((p) => p.userId === userId);
     const shared = evParts.length > 1 && !!me;
     const movable = ev.priority === "movable";

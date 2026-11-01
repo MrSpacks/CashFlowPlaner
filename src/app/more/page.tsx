@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { setLanguage, signOutAction } from "@/app/actions";
 import PageHeader from "@/components/PageHeader";
+import PushToggle from "@/components/PushToggle";
 import { RowLink, btnGhostCls } from "@/components/ui";
 import { getDb } from "@/db";
 import { LANGUAGE_NAMES, LOCALES } from "@/i18n/dictionaries";
@@ -35,10 +36,13 @@ export default async function MorePage() {
         <RowLink href="/more/balance" label={t.more.balance} />
         <RowLink href="/more/income" label={t.more.incomes} />
         <RowLink href="/more/expenses" label={t.more.fixed} />
-        <div className="flex items-center justify-between px-4 py-3 text-sm text-slate-400">
-          <span>{t.more.invites}</span>
-          <span className="text-xs">{t.common.soon}</span>
-        </div>
+        <RowLink href="/more/sharing" label={t.sh.title} />
+      </div>
+
+      <div className="mx-4 mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        <p className="text-sm font-medium">{t.rm.pushTitle}</p>
+        <p className="mb-3 text-xs text-slate-500">{t.rm.pushHint}</p>
+        <PushToggle t={t.rm} />
       </div>
 
       <form action={setLanguage} className="mx-4 mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">

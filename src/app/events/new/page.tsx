@@ -23,7 +23,7 @@ export default async function NewEventPage({
       <PageHeader title={t.ev.newTitle} />
       <div className="px-4">
         <Card>
-          <EventForm t={t.ev} defaults={defaults} baseCurrency={profile.baseCurrency} />
+          <EventForm t={t.ev} defaults={defaults} baseCurrency={profile.baseCurrency} privateLabel={t.sh.privateEvent} />
         </Card>
       </div>
     </>

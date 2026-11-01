@@ -14,7 +14,7 @@ import ShareLink from "@/components/ShareLink";
 import { BackLink, Card, CurrencySelect, btnCls, btnGhostCls, inputCls, labelCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
-import { getEventForUser, getItemsWithPayments, TYPE_ICON } from "@/lib/events";
+import { getEventAccess, getItemsWithPayments, TYPE_ICON } from "@/lib/events";
 import { getProfile, getRates } from "@/lib/finance";
 import { formatDate, formatMoney, todayISO } from "@/lib/forecast";
 import { ensureCreatorParticipant, eventBalances, getSplitData, payerOf, transfers } from "@/lib/split";
@@ -30,8 +30,9 @@ const XIcon = () => (
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id } = await params;
-  const ev = await getEventForUser(id, user.id);
-  if (!ev) notFound();
+  const access = await getEventAccess(id, user.id);
+  if (!access) notFound();
+  const { ev, canEdit } = access;
   if (ev.createdBy === user.id) await ensureCreatorParticipant(ev, user.name);
 
   const { t, intl } = await getI18n();
@@ -79,6 +80,8 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           {TYPE_ICON[ev.type]} {t.ev.types[ev.type]} · {t.ev.statuses[ev.status]}
           {ev.priority !== "want" && ` · ${t.ev.priorities[ev.priority]}`}
           {ev.recurrence === "yearly" && " · ↻"}
+          {ev.visibility === "private" && " · 🔒"}
+          {!canEdit && ` · 👁 ${t.sh.readOnly}`}
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{ev.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{dateText}</p>
@@ -228,6 +231,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         )}
 
         {/* Добавить трату */}
+        {canEdit && (
         <Card>
           <h2 className="mb-3 font-semibold">{t.ev.addExpense}</h2>
           <form action={addExpenseItem} className="space-y-3">
@@ -283,6 +287,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             <button className={`${btnCls} w-full`}>{t.common.add}</button>
           </form>
         </Card>
+        )}
 
         {/* Участники */}
         <Card>
@@ -311,20 +316,24 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               </li>
             ))}
           </ul>
+          {canEdit && (
           <form action={addParticipant} className="flex gap-2">
             <input type="hidden" name="eventId" value={ev.id} />
             <input name="name" required placeholder={t.pt.namePlaceholder} className={inputCls} />
             <button className={`${btnCls} shrink-0`} aria-label={t.common.add}>＋</button>
           </form>
+          )}
         </Card>
 
         {/* Редактирование и удаление */}
+        {canEdit && (
         <details className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
           <summary className="cursor-pointer font-semibold">{t.ev.edit}</summary>
           <div className="mt-3">
-            <EventForm t={t.ev} event={ev} baseCurrency={profile.baseCurrency} />
+            <EventForm t={t.ev} event={ev} baseCurrency={profile.baseCurrency} privateLabel={t.sh.privateEvent} />
           </div>
         </details>
+        )}
 
         {ev.createdBy === user.id && (
           <details className="rounded-2xl p-1">

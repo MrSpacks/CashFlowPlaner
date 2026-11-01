@@ -282,3 +282,24 @@ export const exchangeRates = pgTable(
   },
   (t) => [primaryKey({ columns: [t.date, t.base, t.quote] })],
 );
+
+// ---------- push-уведомления ----------
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  locale: text("locale").default("en").notNull(),
+  createdAt: created(),
+});
+
+/** Не больше одного напоминания пользователю в день. */
+export const reminderLog = pgTable(
+  "reminder_log",
+  {
+    userId: text("user_id").notNull(),
+    day: date("day").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.day] })],
+);

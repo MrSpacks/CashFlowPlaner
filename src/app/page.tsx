@@ -4,7 +4,8 @@ import { Card, btnCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { buildUserForecast } from "@/lib/finance";
-import { formatDate, formatMoney, monthLabel } from "@/lib/forecast";
+import { formatDate, formatMoney, monthLabel, todayISO } from "@/lib/forecast";
+import { getReminders } from "@/lib/reminders";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ const stateStyle = {
 export default async function ForecastPage() {
   const user = await requireUser();
   const { t, intl } = await getI18n();
-  const f = await buildUserForecast(user.id);
+  const [f, reminders] = await Promise.all([buildUserForecast(user.id), getReminders(user.id, todayISO(), 7, 7)]);
   const money = (n: number) => formatMoney(n, f.base, intl);
 
   if (f.isEmpty) {
@@ -49,6 +50,26 @@ export default async function ForecastPage() {
             : t.forecast.subtitle
         }
       />
+      {reminders.length > 0 && (
+        <div className="mx-4 mb-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200">
+          <h2 className="mb-2 text-sm font-semibold text-amber-900">🔔 {t.rm.title}</h2>
+          <ul className="space-y-1.5 text-sm">
+            {reminders.slice(0, 6).map((r, i) => (
+              <li key={`${r.eventId}-${i}`}>
+                <Link href={`/events/${r.eventId}`} className="flex items-baseline justify-between gap-2">
+                  <span className="min-w-0 truncate">
+                    <span className={r.kind === "overdue" ? "font-semibold text-rose-600" : "text-amber-800"}>
+                      {r.kind === "overdue" ? t.rm.overdue : r.kind === "due" ? t.rm.due : t.rm.event} {t.rm.when(r.days)}:
+                    </span>{" "}
+                    {r.title}
+                  </span>
+                  {r.amount != null && <span className="shrink-0 font-medium">{formatMoney(r.amount, r.currency, intl)}</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <ul className="space-y-3 px-4">
         {f.months.map((mo) => {
           const s = stateStyle[mo.state];

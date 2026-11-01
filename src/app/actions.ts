@@ -7,6 +7,9 @@ import { redirect } from "next/navigation";
 import { db } from "@/db";
 import {
   balanceSnapshots,
+  calendarInvites,
+  calendarMembers,
+  calendars,
   eventParticipants,
   events,
   expenseItems,
@@ -15,12 +18,15 @@ import {
   incomes,
   incomeSources,
   payments,
+  pushSubscriptions,
   settlements,
 } from "@/db/schema";
-import { isLocale } from "@/i18n/dictionaries";
+import { DICTIONARIES, isLocale } from "@/i18n/dictionaries";
+import { getI18n } from "@/i18n/server";
 import { auth, requireUser } from "@/lib/auth";
-import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, getEventForUser } from "@/lib/events";
+import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, getEditableEvent } from "@/lib/events";
 import { CURRENCIES, parseAmount, todayISO } from "@/lib/forecast";
+import { sendPushToUser } from "@/lib/push";
 import { ensureCreatorParticipant, payerOf } from "@/lib/split";
 import { randomBytes } from "node:crypto";
 
@@ -215,7 +221,7 @@ export async function createEvent(fd: FormData) {
 
 export async function updateEvent(fd: FormData) {
   const user = await requireUser();
-  const ev = await getEventForUser(str(fd, "id"), user.id);
+  const ev = await getEditableEvent(str(fd, "id"), user.id);
   if (!ev) return;
   const fields = eventFields(fd);
   if (!fields.title) return;
@@ -227,7 +233,7 @@ export async function updateEvent(fd: FormData) {
 /** Быстрая смена статуса (например, идея → планирую). */
 export async function setEventStatus(fd: FormData) {
   const user = await requireUser();
-  const ev = await getEventForUser(str(fd, "id"), user.id);
+  const ev = await getEditableEvent(str(fd, "id"), user.id);
   if (!ev) return;
   await db
     .update(events)
@@ -238,7 +244,7 @@ export async function setEventStatus(fd: FormData) {
 
 export async function deleteEvent(fd: FormData) {
   const user = await requireUser();
-  const ev = await getEventForUser(str(fd, "id"), user.id);
+  const ev = await getEditableEvent(str(fd, "id"), user.id);
   if (!ev || ev.createdBy !== user.id) return; // удалить может только автор
   await db.delete(events).where(eq(events.id, ev.id));
   revalidatePath("/", "layout");
@@ -250,12 +256,12 @@ async function itemForUser(itemId: string, userId: string) {
   if (!/^[0-9a-f-]{36}$/i.test(itemId)) return null;
   const [it] = await db.select().from(expenseItems).where(eq(expenseItems.id, itemId)).limit(1);
   if (!it) return null;
-  return (await getEventForUser(it.eventId, userId)) ? it : null;
+  return (await getEditableEvent(it.eventId, userId)) ? it : null;
 }
 
 export async function addExpenseItem(fd: FormData) {
   const user = await requireUser();
-  const ev = await getEventForUser(str(fd, "eventId"), user.id);
+  const ev = await getEditableEvent(str(fd, "eventId"), user.id);
   const amount = parseAmount(fd.get("amount"));
   const title = str(fd, "title").slice(0, 200);
   if (!ev || amount == null || !title) return;
@@ -305,7 +311,7 @@ export async function toggleExpensePaid(fd: FormData) {
     const already = prev.filter((p) => p.currency === it.currency).reduce((a, p) => a + Number(p.amount), 0);
     const rest = Math.max(Number(it.amount) - already, 0);
     if (rest > 0) {
-      const ev = await getEventForUser(it.eventId, user.id);
+      const ev = await getEditableEvent(it.eventId, user.id);
       const parts = ev ? await db.select().from(eventParticipants).where(eq(eventParticipants.eventId, ev.id)) : [];
       await db.insert(payments).values({
         expenseItemId: it.id,
@@ -325,7 +331,7 @@ const newToken = () => randomBytes(18).toString("base64url");
 
 export async function addParticipant(fd: FormData) {
   const user = await requireUser();
-  const ev = await getEventForUser(str(fd, "eventId"), user.id);
+  const ev = await getEditableEvent(str(fd, "eventId"), user.id);
   const name = str(fd, "name").slice(0, 80);
   if (!ev || !name) return;
   await ensureCreatorParticipant(ev, user.id === ev.createdBy ? user.name : "—");
@@ -337,7 +343,7 @@ export async function removeParticipant(fd: FormData) {
   const user = await requireUser();
   const [p] = await db.select().from(eventParticipants).where(eq(eventParticipants.id, str(fd, "id"))).limit(1);
   if (!p) return;
-  const ev = await getEventForUser(p.eventId, user.id);
+  const ev = await getEditableEvent(p.eventId, user.id);
   if (!ev || p.userId === ev.createdBy) return; // создателя не удаляем
   // Траты, которые он оплачивал, переходят на создателя события.
   await db.update(expenseItems).set({ paidByParticipantId: null }).where(eq(expenseItems.paidByParticipantId, p.id));
@@ -366,7 +372,7 @@ export async function acceptInvite(fd: FormData) {
 /** Отметить возврат долга (from → to). */
 export async function addSettlement(fd: FormData) {
   const user = await requireUser();
-  const ev = await getEventForUser(str(fd, "eventId"), user.id);
+  const ev = await getEditableEvent(str(fd, "eventId"), user.id);
   const amount = parseAmount(fd.get("amount"));
   if (!ev || amount == null || amount <= 0) return;
   const parts = await db.select().from(eventParticipants).where(eq(eventParticipants.eventId, ev.id));
@@ -387,7 +393,99 @@ export async function addSettlement(fd: FormData) {
 export async function deleteSettlement(fd: FormData) {
   const user = await requireUser();
   const [st] = await db.select().from(settlements).where(eq(settlements.id, str(fd, "id"))).limit(1);
-  if (!st || !(await getEventForUser(st.eventId, user.id))) return;
+  if (!st || !(await getEditableEvent(st.eventId, user.id))) return;
   await db.delete(settlements).where(eq(settlements.id, st.id));
   revalidatePath("/", "layout");
+}
+
+// ---------- общий календарь ----------
+export async function createCalendarInvite(fd: FormData) {
+  const user = await requireUser();
+  const calendarId = await getDefaultCalendarId(user.id, user.name);
+  const role = str(fd, "role") === "editor" ? "editor" : "viewer";
+  await db.insert(calendarInvites).values({
+    calendarId,
+    token: newToken(),
+    role,
+    createdBy: user.id,
+    expiresAt: new Date(Date.now() + 14 * 24 * 3600 * 1000),
+  });
+  revalidatePath("/more/sharing");
+}
+
+export async function revokeCalendarInvite(fd: FormData) {
+  const user = await requireUser();
+  await db.delete(calendarInvites).where(and(eq(calendarInvites.id, str(fd, "id")), eq(calendarInvites.createdBy, user.id)));
+  revalidatePath("/more/sharing");
+}
+
+export async function acceptCalendarInvite(fd: FormData) {
+  const user = await requireUser();
+  const [inv] = await db.select().from(calendarInvites).where(eq(calendarInvites.token, str(fd, "token"))).limit(1);
+  if (!inv || inv.acceptedBy || (inv.expiresAt && inv.expiresAt < new Date())) redirect("/join/invalid");
+  const [cal] = await db.select().from(calendars).where(eq(calendars.id, inv.calendarId)).limit(1);
+  if (cal && cal.ownerId !== user.id) {
+    await db
+      .insert(calendarMembers)
+      .values({ calendarId: inv.calendarId, userId: user.id, role: inv.role })
+      .onConflictDoUpdate({ target: [calendarMembers.calendarId, calendarMembers.userId], set: { role: inv.role } });
+  }
+  await db.update(calendarInvites).set({ acceptedBy: user.id }).where(eq(calendarInvites.id, inv.id));
+  revalidatePath("/", "layout");
+  redirect("/calendar");
+}
+
+export async function removeCalendarMember(fd: FormData) {
+  const user = await requireUser();
+  const calendarId = await getDefaultCalendarId(user.id, user.name);
+  await db
+    .delete(calendarMembers)
+    .where(and(eq(calendarMembers.calendarId, calendarId), eq(calendarMembers.userId, str(fd, "userId"))));
+  revalidatePath("/", "layout");
+}
+
+export async function leaveCalendar(fd: FormData) {
+  const user = await requireUser();
+  await db
+    .delete(calendarMembers)
+    .where(and(eq(calendarMembers.calendarId, str(fd, "calendarId")), eq(calendarMembers.userId, user.id)));
+  revalidatePath("/", "layout");
+}
+
+// ---------- push-уведомления ----------
+export async function savePushSubscription(json: string) {
+  const user = await requireUser();
+  let sub: { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+  try {
+    sub = JSON.parse(json);
+  } catch {
+    return false;
+  }
+  if (!sub.endpoint?.startsWith("https://") || !sub.keys?.p256dh || !sub.keys?.auth) return false;
+  const { locale } = await getI18n();
+  const values = { userId: user.id, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth, locale };
+  await db
+    .insert(pushSubscriptions)
+    .values(values)
+    .onConflictDoUpdate({ target: pushSubscriptions.endpoint, set: values });
+  return true;
+}
+
+export async function deletePushSubscription(endpoint: string) {
+  const user = await requireUser();
+  await db
+    .delete(pushSubscriptions)
+    .where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userId, user.id)));
+  return true;
+}
+
+export async function sendTestPush() {
+  const user = await requireUser();
+  const sent = await sendPushToUser(user.id, (loc) => ({
+    title: "CashFlowPlaner",
+    body: DICTIONARIES[isLocale(loc) ? loc : "en"].rm.pushTest,
+    url: "/",
+    tag: "test",
+  }));
+  return sent;
 }

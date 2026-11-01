@@ -77,6 +77,44 @@ export async function getEventForUser(eventId: string, userId: string): Promise<
   return ids.includes(ev.calendarId) ? ev : null;
 }
 
+export type Role = "owner" | "editor" | "viewer";
+
+/** Роль пользователя в календаре (null — нет доступа). */
+export async function getCalendarRole(calendarId: string, userId: string): Promise<Role | null> {
+  const [own] = await db
+    .select({ id: calendars.id })
+    .from(calendars)
+    .where(and(eq(calendars.id, calendarId), eq(calendars.ownerId, userId)))
+    .limit(1);
+  if (own) return "owner";
+  const [m] = await db
+    .select({ role: calendarMembers.role })
+    .from(calendarMembers)
+    .where(and(eq(calendarMembers.calendarId, calendarId), eq(calendarMembers.userId, userId)))
+    .limit(1);
+  return m?.role ?? null;
+}
+
+/** Событие + может ли пользователь его менять (зритель общего календаря — только смотрит). */
+export async function getEventAccess(eventId: string, userId: string) {
+  const ev = await getEventForUser(eventId, userId);
+  if (!ev) return null;
+  if (ev.createdBy === userId) return { ev, canEdit: true };
+  const [p] = await db
+    .select({ id: eventParticipants.id })
+    .from(eventParticipants)
+    .where(and(eq(eventParticipants.eventId, ev.id), eq(eventParticipants.userId, userId)))
+    .limit(1);
+  if (p) return { ev, canEdit: true };
+  const role = await getCalendarRole(ev.calendarId, userId);
+  return { ev, canEdit: role === "owner" || role === "editor" };
+}
+
+export async function getEditableEvent(eventId: string, userId: string) {
+  const a = await getEventAccess(eventId, userId);
+  return a?.canEdit ? a.ev : null;
+}
+
 export async function listUserEvents(userId: string): Promise<EventRow[]> {
   const [calIds, partIds] = await Promise.all([getUserCalendarIds(userId), participantEventIds(userId)]);
   const conds = [];
