@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { setLanguage, signOutAction } from "@/app/actions";
+import IncomingInvites from "@/components/IncomingInvites";
 import PageHeader from "@/components/PageHeader";
 import PushToggle from "@/components/PushToggle";
 import { RowLink, btnGhostCls } from "@/components/ui";
@@ -31,6 +32,7 @@ export default async function MorePage() {
   return (
     <>
       <PageHeader title={t.more.title} subtitle={`${t.more.signedInAs} ${user.email}`} />
+      <IncomingInvites userId={user.id} t={t.sh} />
 
       <div className="mx-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
         <RowLink href="/more/balance" label={t.more.balance} />

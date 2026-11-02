@@ -10,6 +10,7 @@ import {
   toggleExpensePaid,
 } from "@/app/actions";
 import EventForm from "@/components/EventForm";
+import QrCode from "@/components/QrCode";
 import ShareLink from "@/components/ShareLink";
 import { BackLink, Card, CurrencySelect, btnCls, btnGhostCls, inputCls, labelCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
@@ -27,9 +28,16 @@ const XIcon = () => (
   </svg>
 );
 
-export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EventPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ notfound?: string }>;
+}) {
   const user = await requireUser();
   const { id } = await params;
+  const { notfound } = await searchParams;
   const access = await getEventAccess(id, user.id);
   if (!access) notFound();
   const { ev, canEdit } = access;
@@ -293,9 +301,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         <Card>
           <h2 className="mb-1 font-semibold">{t.pt.title}</h2>
           <p className="mb-3 text-xs text-slate-500">{t.pt.inviteHint}</p>
+          {notfound && <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{t.pt.notFoundEmail}</p>}
           <ul className="mb-3 divide-y divide-slate-100 text-sm">
             {parts.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-2 py-2">
+              <li key={p.id} className="py-2">
+                <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{nameOf(p.id)}</p>
                   <p className="text-xs text-slate-400">{p.userId ? t.pt.joined : t.pt.guest}</p>
@@ -313,6 +323,12 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
                     </form>
                   )}
                 </div>
+                </div>
+                {!p.userId && p.inviteToken && (
+                  <div className="mt-2">
+                    <QrCode path={`/invite/${p.inviteToken}`} label={t.sh.qr} hint={t.sh.qrHint} />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

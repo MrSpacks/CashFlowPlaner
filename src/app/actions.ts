@@ -1,11 +1,12 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import {
+  authUser,
   balanceSnapshots,
   calendarInvites,
   calendarMembers,
@@ -332,10 +333,42 @@ const newToken = () => randomBytes(18).toString("base64url");
 export async function addParticipant(fd: FormData) {
   const user = await requireUser();
   const ev = await getEditableEvent(str(fd, "eventId"), user.id);
-  const name = str(fd, "name").slice(0, 80);
-  if (!ev || !name) return;
+  const input = str(fd, "name").slice(0, 120);
+  if (!ev || !input) return;
   await ensureCreatorParticipant(ev, user.id === ev.createdBy ? user.name : "—");
-  await db.insert(eventParticipants).values({ eventId: ev.id, displayName: name, role: "editor", inviteToken: newToken() });
+
+  if (input.includes("@")) {
+    const found = await findUserByEmail(input);
+    if (found) {
+      const [exists] = await db
+        .select({ id: eventParticipants.id })
+        .from(eventParticipants)
+        .where(and(eq(eventParticipants.eventId, ev.id), eq(eventParticipants.userId, found.id)))
+        .limit(1);
+      if (!exists) {
+        await db.insert(eventParticipants).values({ eventId: ev.id, userId: found.id, displayName: found.name, role: "editor" });
+        await sendPushToUser(found.id, (loc) => ({
+          title: "CashFlowPlaner",
+          body: DICTIONARIES[isLocale(loc) ? loc : "en"].pt.pushAdded(user.name, ev.title),
+          url: `/events/${ev.id}`,
+          tag: `event-${ev.id}`,
+        }));
+      }
+      revalidatePath(`/events/${ev.id}`);
+      return;
+    }
+    // Не зарегистрирован — гость с приглашением по ссылке.
+    await db.insert(eventParticipants).values({
+      eventId: ev.id,
+      displayName: input.split("@")[0].slice(0, 80),
+      role: "editor",
+      inviteToken: newToken(),
+    });
+    revalidatePath(`/events/${ev.id}`);
+    redirect(`/events/${ev.id}?notfound=1`);
+  }
+
+  await db.insert(eventParticipants).values({ eventId: ev.id, displayName: input.slice(0, 80), role: "editor", inviteToken: newToken() });
   revalidatePath(`/events/${ev.id}`);
 }
 
@@ -423,6 +456,7 @@ export async function acceptCalendarInvite(fd: FormData) {
   const user = await requireUser();
   const [inv] = await db.select().from(calendarInvites).where(eq(calendarInvites.token, str(fd, "token"))).limit(1);
   if (!inv || inv.acceptedBy || (inv.expiresAt && inv.expiresAt < new Date())) redirect("/join/invalid");
+  if (inv.inviteeUserId && inv.inviteeUserId !== user.id) redirect("/join/invalid");
   const [cal] = await db.select().from(calendars).where(eq(calendars.id, inv.calendarId)).limit(1);
   if (cal && cal.ownerId !== user.id) {
     await db
@@ -488,4 +522,64 @@ export async function sendTestPush() {
     tag: "test",
   }));
   return sent;
+}
+
+async function findUserByEmail(email: string) {
+  const [u] = await db
+    .select({ id: authUser.id, name: authUser.name })
+    .from(authUser)
+    .where(eq(sql`lower(${authUser.email})`, email.trim().toLowerCase()))
+    .limit(1);
+  return u ?? null;
+}
+
+/** Приглашение в календарь зарегистрированному пользователю по email. */
+export async function inviteToCalendarByEmail(fd: FormData) {
+  const user = await requireUser();
+  const email = str(fd, "email");
+  const role = str(fd, "role") === "viewer" ? "viewer" : "editor";
+  const found = email.includes("@") ? await findUserByEmail(email) : null;
+  if (!found || found.id === user.id) redirect("/more/sharing?notfound=1");
+
+  const calendarId = await getDefaultCalendarId(user.id, user.name);
+  const [member] = await db
+    .select({ role: calendarMembers.role })
+    .from(calendarMembers)
+    .where(and(eq(calendarMembers.calendarId, calendarId), eq(calendarMembers.userId, found.id)))
+    .limit(1);
+  if (member) {
+    await db
+      .update(calendarMembers)
+      .set({ role })
+      .where(and(eq(calendarMembers.calendarId, calendarId), eq(calendarMembers.userId, found.id)));
+    redirect("/more/sharing?sent=1");
+  }
+  // Старые неотвеченные приглашения этому человеку — заменяем новым.
+  await db
+    .delete(calendarInvites)
+    .where(and(eq(calendarInvites.calendarId, calendarId), eq(calendarInvites.inviteeUserId, found.id), isNull(calendarInvites.acceptedBy)));
+  await db.insert(calendarInvites).values({
+    calendarId,
+    token: newToken(),
+    role,
+    createdBy: user.id,
+    inviteeUserId: found.id,
+    expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+  });
+  await sendPushToUser(found.id, (loc) => ({
+    title: "CashFlowPlaner",
+    body: DICTIONARIES[isLocale(loc) ? loc : "en"].sh.pushInvite(user.name),
+    url: "/",
+    tag: "calendar-invite",
+  }));
+  revalidatePath("/", "layout");
+  redirect("/more/sharing?sent=1");
+}
+
+export async function declineCalendarInvite(fd: FormData) {
+  const user = await requireUser();
+  await db
+    .delete(calendarInvites)
+    .where(and(eq(calendarInvites.id, str(fd, "id")), eq(calendarInvites.inviteeUserId, user.id)));
+  revalidatePath("/", "layout");
 }

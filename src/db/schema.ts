@@ -70,6 +70,7 @@ export const calendarInvites = pgTable("calendar_invites", {
   createdBy: text("created_by").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   acceptedBy: text("accepted_by"),
+  inviteeUserId: text("invitee_user_id"), // приглашение конкретному пользователю (по email)
   createdAt: created(),
 });
 

@@ -1,13 +1,15 @@
 import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import {
   createCalendarInvite,
+  inviteToCalendarByEmail,
   leaveCalendar,
   removeCalendarMember,
   revokeCalendarInvite,
 } from "@/app/actions";
 import PageHeader from "@/components/PageHeader";
+import QrCode from "@/components/QrCode";
 import ShareLink from "@/components/ShareLink";
-import { BackLink, Card, btnCls, btnGhostCls } from "@/components/ui";
+import { BackLink, Card, btnCls, btnGhostCls, inputCls } from "@/components/ui";
 import { db } from "@/db";
 import { authUser, calendarInvites, calendarMembers, calendars } from "@/db/schema";
 import { getI18n } from "@/i18n/server";
@@ -23,8 +25,9 @@ const XIcon = () => (
   </svg>
 );
 
-export default async function SharingPage() {
+export default async function SharingPage({ searchParams }: { searchParams: Promise<{ sent?: string; notfound?: string }> }) {
   const user = await requireUser();
+  const { sent, notfound } = await searchParams;
   const { t, intl } = await getI18n();
   const calendarId = await getDefaultCalendarId(user.id, user.name);
 
@@ -40,6 +43,11 @@ export default async function SharingPage() {
     .where(
       and(eq(calendarInvites.calendarId, calendarId), isNull(calendarInvites.acceptedBy), gt(calendarInvites.expiresAt, new Date())),
     );
+
+  const inviteeIds = invites.map((i) => i.inviteeUserId).filter((x): x is string => !!x);
+  const invitees = inviteeIds.length
+    ? await db.select({ id: authUser.id, name: authUser.name }).from(authUser).where(inArray(authUser.id, inviteeIds))
+    : [];
 
   const mine = await db
     .select({ calendarId: calendarMembers.calendarId, role: calendarMembers.role })
@@ -58,6 +66,24 @@ export default async function SharingPage() {
       <BackLink href="/more" label={t.more.title} />
       <PageHeader title={t.sh.title} subtitle={t.sh.hint} />
       <div className="space-y-4 px-4">
+        {sent && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">✓ {t.sh.sentOk}</p>}
+        {notfound && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{t.sh.notFound}</p>}
+
+        <Card>
+          <h2 className="font-semibold">{t.sh.byEmail}</h2>
+          <p className="mb-3 text-xs text-slate-500">{t.sh.emailHint}</p>
+          <form action={inviteToCalendarByEmail} className="space-y-2">
+            <input name="email" type="email" required autoComplete="email" placeholder="email@example.com" className={inputCls} />
+            <div className="flex gap-2">
+              <select name="role" defaultValue="editor" className={inputCls}>
+                <option value="editor">{t.sh.roles.editor}</option>
+                <option value="viewer">{t.sh.roles.viewer}</option>
+              </select>
+              <button className={`${btnCls} shrink-0`}>{t.sh.send}</button>
+            </div>
+          </form>
+        </Card>
+
         <Card>
           <h2 className="mb-2 font-semibold">{t.sh.members}</h2>
           {members.length === 0 ? (
@@ -83,7 +109,8 @@ export default async function SharingPage() {
             </ul>
           )}
 
-          <div className="mt-4 grid gap-2">
+          <p className="mt-4 mb-2 text-xs font-medium text-slate-500">{t.sh.orLink}</p>
+          <div className="grid gap-2">
             <form action={createCalendarInvite}>
               <input type="hidden" name="role" value="viewer" />
               <button className={`${btnGhostCls} w-full`}>＋ {t.sh.inviteViewer}</button>
@@ -99,25 +126,39 @@ export default async function SharingPage() {
           <Card>
             <h2 className="mb-2 font-semibold">{t.sh.pending}</h2>
             <ul className="divide-y divide-slate-100 text-sm">
-              {invites.map((inv) => (
-                <li key={inv.id} className="flex items-center justify-between gap-2 py-2">
-                  <div className="min-w-0">
-                    <p className="font-medium">{t.sh.roles[inv.role]}</p>
-                    {inv.expiresAt && (
-                      <p className="text-xs text-slate-400">{t.sh.validUntil(formatDate(inv.expiresAt.toISOString().slice(0, 10), intl))}</p>
+              {invites.map((inv) => {
+                const invitee = invitees.find((u) => u.id === inv.inviteeUserId);
+                return (
+                  <li key={inv.id} className="py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">
+                          {invitee ? `⏳ ${invitee.name}` : "🔗"} · {t.sh.roles[inv.role]}
+                        </p>
+                        {inv.expiresAt && (
+                          <p className="text-xs text-slate-400">{t.sh.validUntil(formatDate(inv.expiresAt.toISOString().slice(0, 10), intl))}</p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {!invitee && (
+                          <ShareLink path={`/join/${inv.token}`} label={t.pt.invite} copiedLabel={t.pt.copied} title={t.sh.title} />
+                        )}
+                        <form action={revokeCalendarInvite}>
+                          <input type="hidden" name="id" value={inv.id} />
+                          <button aria-label={t.sh.revoke} className="p-1 text-slate-300 active:text-rose-600">
+                            <XIcon />
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                    {!invitee && (
+                      <div className="mt-2">
+                        <QrCode path={`/join/${inv.token}`} label={t.sh.qr} hint={t.sh.qrHint} />
+                      </div>
                     )}
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <ShareLink path={`/join/${inv.token}`} label={t.pt.invite} copiedLabel={t.pt.copied} title={t.sh.title} />
-                    <form action={revokeCalendarInvite}>
-                      <input type="hidden" name="id" value={inv.id} />
-                      <button aria-label={t.sh.revoke} className="p-1 text-slate-300 active:text-rose-600">
-                        <XIcon />
-                      </button>
-                    </form>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         )}

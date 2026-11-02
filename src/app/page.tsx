@@ -1,4 +1,5 @@
 import Link from "next/link";
+import IncomingInvites from "@/components/IncomingInvites";
 import PageHeader from "@/components/PageHeader";
 import { Card, btnCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
@@ -25,6 +26,7 @@ export default async function ForecastPage() {
     return (
       <>
         <PageHeader title={t.forecast.title} subtitle={t.forecast.subtitle} />
+        <IncomingInvites userId={user.id} t={t.sh} />
         <div className="px-4">
           <Card>
             <h2 className="text-lg font-semibold">{t.forecast.setupTitle}</h2>
@@ -50,6 +52,7 @@ export default async function ForecastPage() {
             : t.forecast.subtitle
         }
       />
+      <IncomingInvites userId={user.id} t={t.sh} />
       {reminders.length > 0 && (
         <div className="mx-4 mb-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200">
           <h2 className="mb-2 text-sm font-semibold text-amber-900">🔔 {t.rm.title}</h2>
