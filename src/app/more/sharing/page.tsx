@@ -1,6 +1,7 @@
 import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import {
   createCalendarInvite,
+  inviteFriendToCalendar,
   inviteToCalendarByEmail,
   leaveCalendar,
   removeCalendarMember,
@@ -15,6 +16,8 @@ import { authUser, calendarInvites, calendarMembers, calendars } from "@/db/sche
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { getDefaultCalendarId } from "@/lib/events";
+import { getRelations, getUsersInfo } from "@/lib/people";
+import Avatar from "@/components/Avatar";
 import { formatDate } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +52,12 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
     ? await db.select({ id: authUser.id, name: authUser.name }).from(authUser).where(inArray(authUser.id, inviteeIds))
     : [];
 
+  const rel = await getRelations(user.id);
+  const friendIds = rel.friends
+    .map((f) => f.userId)
+    .filter((id) => !members.some((m) => m.userId === id) && !inviteeIds.includes(id));
+  const friendInfo = await getUsersInfo(friendIds);
+
   const mine = await db
     .select({ calendarId: calendarMembers.calendarId, role: calendarMembers.role })
     .from(calendarMembers)
@@ -68,6 +77,27 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
       <div className="space-y-4 px-4">
         {sent && <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">✓ {t.sh.sentOk}</p>}
         {notfound && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">{t.sh.notFound}</p>}
+
+        {friendIds.length > 0 && (
+          <Card>
+            <h2 className="mb-2 font-semibold">{t.fr.fromFriends}</h2>
+            <div className="flex flex-wrap gap-2">
+              {friendIds.map((fid) => {
+                const f = friendInfo.get(fid);
+                return (
+                  <form key={fid} action={inviteFriendToCalendar}>
+                    <input type="hidden" name="userId" value={fid} />
+                    <input type="hidden" name="role" value="editor" />
+                    <button className="inline-flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1 text-sm ring-1 ring-slate-300 active:bg-slate-100">
+                      <Avatar name={f?.name ?? "?"} src={f?.avatar} seed={fid} size={24} />
+                      {f?.name ?? "—"} ＋
+                    </button>
+                  </form>
+                );
+              })}
+            </div>
+          </Card>
+        )}
 
         <Card>
           <h2 className="font-semibold">{t.sh.byEmail}</h2>

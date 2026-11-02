@@ -12,6 +12,7 @@ import {
   primaryKey,
   index,
   uniqueIndex,
+  customType,
 } from "drizzle-orm/pg-core";
 
 /*
@@ -40,6 +41,9 @@ export const profiles = pgTable("profiles", {
   baseCurrency: char("base_currency", { length: 3 }).default("CZK").notNull(),
   timezone: text("timezone").default("Europe/Prague").notNull(),
   cushionAmount: money("cushion_amount").default("0").notNull(),
+  username: text("username"),
+  avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
+  searchable: boolean("searchable").default(true).notNull(),
   createdAt: created(),
 });
 
@@ -303,4 +307,54 @@ export const reminderLog = pgTable(
     day: date("day").notNull(),
   },
   (t) => [primaryKey({ columns: [t.userId, t.day] })],
+);
+
+// ---------- профиль, друзья, чаты ----------
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
+
+export const avatars = pgTable("avatars", {
+  userId: text("user_id").primaryKey().references(() => authUser.id, { onDelete: "cascade" }),
+  data: bytea("data").notNull(),
+  mime: text("mime").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const friendships = pgTable("friendships", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requesterId: text("requester_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+  addresseeId: text("addressee_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+  status: text("status").$type<"pending" | "accepted">().default("pending").notNull(),
+  createdAt: created(),
+});
+
+/** Чат: либо события (eventId), либо личный (userA < userB). */
+export const conversations = pgTable("conversations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  eventId: uuid("event_id").unique().references(() => events.id, { onDelete: "cascade" }),
+  userA: text("user_a").references(() => authUser.id, { onDelete: "cascade" }),
+  userB: text("user_b").references(() => authUser.id, { onDelete: "cascade" }),
+  lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+  createdAt: created(),
+});
+
+export const messages = pgTable("messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: created(),
+});
+
+export const chatReads = pgTable(
+  "chat_reads",
+  {
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+    lastReadAt: timestamp("last_read_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.conversationId, t.userId] })],
 );

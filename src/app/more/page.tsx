@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { setLanguage, setTheme, signOutAction } from "@/app/actions";
 import IncomingInvites from "@/components/IncomingInvites";
+import Avatar from "@/components/Avatar";
 import PageHeader from "@/components/PageHeader";
 import PushToggle from "@/components/PushToggle";
 import { RowLink, btnGhostCls } from "@/components/ui";
@@ -8,6 +9,9 @@ import { getDb } from "@/db";
 import { LANGUAGE_NAMES, LOCALES } from "@/i18n/dictionaries";
 import { getI18n, getTheme } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
+import { getProfile } from "@/lib/finance";
+import { avatarUrl, countIncomingRequests, ensureUsername } from "@/lib/people";
+import Link from "next/link";
 import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -28,12 +32,32 @@ export default async function MorePage() {
   const { t, locale } = await getI18n();
   const chosen = (await cookies()).get("lang")?.value ?? "auto";
   const theme = await getTheme();
+  const [username, profile, requests] = await Promise.all([
+    ensureUsername(user.id),
+    getProfile(user.id),
+    countIncomingRequests(user.id),
+  ]);
   const n = await tableCount();
 
   return (
     <>
       <PageHeader title={t.more.title} subtitle={`${t.more.signedInAs} ${user.email}`} />
       <IncomingInvites userId={user.id} t={t.sh} />
+
+      <Link href="/profile" className="mx-4 mb-4 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 active:bg-slate-50">
+        <Avatar name={user.name} src={avatarUrl(user.id, profile.avatarUpdatedAt)} seed={user.id} size={52} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold">{user.name}</p>
+          <p className="truncate text-sm text-slate-500">@{username}</p>
+        </div>
+        <span className="text-sm text-emerald-700">{t.pr.title} →</span>
+      </Link>
+
+      <div className="mx-4 mb-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+        <RowLink href="/people" label={`👥 ${t.fr.title}`} hint={requests ? `${t.fr.requests}: ${requests}` : undefined} />
+        <RowLink href="/chats" label={`💬 ${t.ch.title}`} />
+        <RowLink href="/ideas" label={`💡 ${t.ideas.title}`} />
+      </div>
 
       <div className="mx-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
         <RowLink href="/more/balance" label={t.more.balance} />

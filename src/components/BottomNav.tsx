@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type Labels = { forecast: string; calendar: string; add: string; ideas: string; more: string };
+type Labels = { forecast: string; calendar: string; add: string; ideas: string; more: string; chats: string; people: string };
+type Me = { name: string; avatar: string | null; id: string } | null;
 
 const ICONS = {
   forecast: "M4 19V9m6 10V5m6 14v-7m4 7H2",
@@ -11,13 +12,24 @@ const ICONS = {
   add: "M12 5v14M5 12h14",
   ideas: "M9 18h6m-5 3h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3Z",
   more: "M5 12h.01M12 12h.01M19 12h.01",
+  chats: "M4 5h16v11H8l-4 4V5Z",
+  people: "M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm13 9v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8",
 };
 
+// Телефон: 5 кнопок. Компьютер: все разделы.
 const ITEMS = [
   { key: "forecast", href: "/" },
   { key: "calendar", href: "/calendar" },
   { key: "add", href: "/add" },
+  { key: "chats", href: "/chats" },
+  { key: "more", href: "/more" },
+] as const;
+const SIDE = [
+  { key: "forecast", href: "/" },
+  { key: "calendar", href: "/calendar" },
   { key: "ideas", href: "/ideas" },
+  { key: "chats", href: "/chats" },
+  { key: "people", href: "/people" },
   { key: "more", href: "/more" },
 ] as const;
 
@@ -42,7 +54,24 @@ function Icon({ k, className = "h-6 w-6" }: { k: keyof typeof ICONS; className?:
 }
 
 /** Телефон: нижнее меню. Компьютер (≥1024px): боковое меню слева. */
-export default function BottomNav({ labels }: { labels: Labels }) {
+function Badge({ n, className = "" }: { n: number; className?: string }) {
+  if (!n) return null;
+  return (
+    <span className={`flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white ${className}`}>
+      {n > 99 ? "99+" : n}
+    </span>
+  );
+}
+
+export default function BottomNav({
+  labels,
+  badges = { chats: 0, people: 0 },
+  me = null,
+}: {
+  labels: Labels;
+  badges?: { chats: number; people: number };
+  me?: Me;
+}) {
   const pathname = usePathname();
   if (HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
 
@@ -66,8 +95,9 @@ export default function BottomNav({ labels }: { labels: Labels }) {
           {labels.add}
         </Link>
         <nav className="space-y-1">
-          {ITEMS.filter((it) => it.key !== "add").map((it) => {
+          {SIDE.map((it) => {
             const active = isActive(pathname, it.href);
+            const n = it.key === "chats" ? badges.chats : it.key === "people" ? badges.people : 0;
             return (
               <Link
                 key={it.key}
@@ -77,11 +107,25 @@ export default function BottomNav({ labels }: { labels: Labels }) {
                 }`}
               >
                 <Icon k={it.key} className="h-5 w-5" />
-                {labels[it.key]}
+                <span className="flex-1">{labels[it.key]}</span>
+                <Badge n={n} />
               </Link>
             );
           })}
         </nav>
+        {me && (
+          <Link href="/profile" className="mt-auto flex items-center gap-2 rounded-xl px-2 py-2 active:bg-slate-100">
+            {me.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={me.avatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+            ) : (
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold text-white">
+                {me.name.slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            <span className="truncate text-sm font-medium text-slate-700">{me.name}</span>
+          </Link>
+        )}
       </aside>
 
       {/* нижнее меню */}
@@ -98,7 +142,7 @@ export default function BottomNav({ labels }: { labels: Labels }) {
               <li key={it.key} className="flex justify-center">
                 <Link
                   href={it.href}
-                  className={`flex min-w-0 flex-col items-center gap-0.5 text-[11px] font-medium ${
+                  className={`relative flex min-w-0 flex-col items-center gap-0.5 text-[11px] font-medium ${
                     active ? "text-emerald-600" : "text-slate-500"
                   }`}
                 >
@@ -111,6 +155,9 @@ export default function BottomNav({ labels }: { labels: Labels }) {
                   >
                     <Icon k={it.key} />
                   </span>
+                  {(it.key === "chats" || it.key === "more") && (
+                    <Badge n={it.key === "chats" ? badges.chats : badges.people} className="absolute top-0 left-1/2 ml-2" />
+                  )}
                   <span className="max-w-full truncate">{labels[it.key]}</span>
                 </Link>
               </li>

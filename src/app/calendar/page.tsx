@@ -105,7 +105,10 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       <div className="mt-5 px-4 lg:mt-0">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-medium text-slate-500">{t.ev.inMonth}</h2>
-          <Link href="/events" className="text-sm text-emerald-700">{t.ev.allEvents}</Link>
+          <span className="flex gap-3">
+            <Link href="/ideas" className="text-sm text-emerald-700">💡 {t.ideas.title}</Link>
+            <Link href="/events" className="text-sm text-emerald-700">{t.ev.allEvents}</Link>
+          </span>
         </div>
         {inMonth.length ? (
           <EventList events={inMonth} t={t.ev} intl={intl} />

@@ -20,8 +20,9 @@ export async function getRates(base: string): Promise<Record<string, number>> {
 export async function getProfile(userId: string) {
   const [p] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
   if (p) return p;
-  const [created] = await db.insert(profiles).values({ userId }).onConflictDoNothing().returning();
-  return created ?? { userId, baseCurrency: "CZK", cushionAmount: "0", displayName: null, timezone: "Europe/Prague", createdAt: new Date() };
+  await db.insert(profiles).values({ userId }).onConflictDoNothing();
+  const [created] = await db.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
+  return created;
 }
 
 export async function getLatestBalance(userId: string) {

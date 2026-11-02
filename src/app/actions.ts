@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -11,14 +11,18 @@ import {
   calendarInvites,
   calendarMembers,
   calendars,
+  conversations,
   eventParticipants,
   events,
   expenseItems,
   expenseShares,
   fixedExpenses,
+  friendships,
   incomes,
   incomeSources,
+  messages,
   payments,
+  profiles,
   pushSubscriptions,
   settlements,
 } from "@/db/schema";
@@ -27,6 +31,8 @@ import { getI18n } from "@/i18n/server";
 import { auth, requireUser } from "@/lib/auth";
 import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, getEditableEvent } from "@/lib/events";
 import { CURRENCIES, parseAmount, todayISO } from "@/lib/forecast";
+import { getConversationForUser, markRead, recipientsOf } from "@/lib/chat";
+import { friendStatus, USERNAME_RE } from "@/lib/people";
 import { sendPushToUser } from "@/lib/push";
 import { ensureCreatorParticipant, payerOf } from "@/lib/split";
 import { randomBytes } from "node:crypto";
@@ -637,4 +643,141 @@ export async function declineCalendarInvite(fd: FormData) {
     .delete(calendarInvites)
     .where(and(eq(calendarInvites.id, str(fd, "id")), eq(calendarInvites.inviteeUserId, user.id)));
   revalidatePath("/", "layout");
+}
+
+// ---------- профиль ----------
+export async function updateProfile(fd: FormData) {
+  const user = await requireUser();
+  const name = str(fd, "name").slice(0, 80);
+  const username = str(fd, "username").toLowerCase().replace(/^@/, "");
+  const searchable = fd.get("searchable") === "on";
+  if (!USERNAME_RE.test(username)) redirect("/profile?error=invalid");
+  const [taken] = await db
+    .select({ id: profiles.userId })
+    .from(profiles)
+    .where(and(sql`lower(${profiles.username}) = ${username}`, sql`${profiles.userId} <> ${user.id}`))
+    .limit(1);
+  if (taken) redirect("/profile?error=taken");
+  if (name) await db.update(authUser).set({ name, updatedAt: new Date() }).where(eq(authUser.id, user.id));
+  await db
+    .insert(profiles)
+    .values({ userId: user.id, username, searchable, displayName: name || null })
+    .onConflictDoUpdate({ target: profiles.userId, set: { username, searchable, ...(name ? { displayName: name } : {}) } });
+  revalidatePath("/", "layout");
+  redirect("/profile?saved=1");
+}
+
+// ---------- друзья ----------
+async function pushFriend(to: string, build: (t: (typeof DICTIONARIES)["en"]["fr"]) => string, url: string) {
+  await sendPushToUser(to, (loc) => ({
+    title: "CashFlowPlaner",
+    body: build(DICTIONARIES[isLocale(loc) ? loc : "en"].fr),
+    url,
+    tag: "friends",
+  }));
+}
+
+export async function sendFriendRequest(fd: FormData) {
+  const user = await requireUser();
+  const other = str(fd, "userId");
+  if (!other || other === user.id) return;
+  const [exists] = await db.select({ id: authUser.id }).from(authUser).where(eq(authUser.id, other)).limit(1);
+  if (!exists) return;
+  const rel = await friendStatus(user.id, other);
+  if (rel.status === "incoming" && rel.id) {
+    // Встречный запрос — сразу дружим.
+    await db.update(friendships).set({ status: "accepted" }).where(eq(friendships.id, rel.id));
+    await pushFriend(other, (t) => t.pushAccepted(user.name), "/people");
+  } else if (rel.status === "none") {
+    await db.insert(friendships).values({ requesterId: user.id, addresseeId: other }).onConflictDoNothing();
+    await pushFriend(other, (t) => t.pushRequest(user.name), "/people");
+  }
+  revalidatePath("/", "layout");
+}
+
+export async function acceptFriendRequest(fd: FormData) {
+  const user = await requireUser();
+  const [f] = await db.select().from(friendships).where(eq(friendships.id, str(fd, "id"))).limit(1);
+  if (!f || f.addresseeId !== user.id) return;
+  await db.update(friendships).set({ status: "accepted" }).where(eq(friendships.id, f.id));
+  await pushFriend(f.requesterId, (t) => t.pushAccepted(user.name), "/people");
+  revalidatePath("/", "layout");
+}
+
+/** Отклонить / отменить запрос / удалить из друзей. */
+export async function removeFriendship(fd: FormData) {
+  const user = await requireUser();
+  await db
+    .delete(friendships)
+    .where(and(eq(friendships.id, str(fd, "id")), or(eq(friendships.requesterId, user.id), eq(friendships.addresseeId, user.id))));
+  revalidatePath("/", "layout");
+}
+
+/** Добавить друга участником события одним нажатием. */
+export async function addFriendToEvent(fd: FormData) {
+  const user = await requireUser();
+  const ev = await getEditableEvent(str(fd, "eventId"), user.id);
+  const friendId = str(fd, "userId");
+  if (!ev || (await friendStatus(user.id, friendId)).status !== "friends") return;
+  await ensureCreatorParticipant(ev, user.id === ev.createdBy ? user.name : "—");
+  const [exists] = await db
+    .select({ id: eventParticipants.id })
+    .from(eventParticipants)
+    .where(and(eq(eventParticipants.eventId, ev.id), eq(eventParticipants.userId, friendId)))
+    .limit(1);
+  if (!exists) {
+    const [f] = await db.select({ name: authUser.name }).from(authUser).where(eq(authUser.id, friendId)).limit(1);
+    await db.insert(eventParticipants).values({ eventId: ev.id, userId: friendId, displayName: f?.name ?? "—", role: "editor" });
+    await sendPushToUser(friendId, (loc) => ({
+      title: "CashFlowPlaner",
+      body: DICTIONARIES[isLocale(loc) ? loc : "en"].pt.pushAdded(user.name, ev.title),
+      url: `/events/${ev.id}`,
+      tag: `event-${ev.id}`,
+    }));
+  }
+  revalidatePath(`/events/${ev.id}`);
+}
+
+/** Пригласить друга в свой календарь (приглашение появится у него в приложении). */
+export async function inviteFriendToCalendar(fd: FormData) {
+  const user = await requireUser();
+  const friendId = str(fd, "userId");
+  if ((await friendStatus(user.id, friendId)).status !== "friends") return;
+  const [f] = await db.select({ email: authUser.email }).from(authUser).where(eq(authUser.id, friendId)).limit(1);
+  if (!f) return;
+  const fd2 = new FormData();
+  fd2.set("email", f.email);
+  fd2.set("role", str(fd, "role") || "editor");
+  await inviteToCalendarByEmail(fd2);
+}
+
+// ---------- чаты ----------
+export async function sendMessage(conversationId: string, body: string) {
+  const user = await requireUser();
+  const text = body.trim().slice(0, 2000);
+  if (!text) return null;
+  const c = await getConversationForUser(conversationId, user.id);
+  if (!c) return null;
+  const [m] = await db.insert(messages).values({ conversationId: c.id, userId: user.id, body: text }).returning();
+  await db.update(conversations).set({ lastMessageAt: m.createdAt }).where(eq(conversations.id, c.id));
+  await markRead(c.id, user.id);
+
+  let title = user.name;
+  if (c.eventId) {
+    const [ev] = await db.select({ title: events.title }).from(events).where(eq(events.id, c.eventId)).limit(1);
+    title = ev?.title ?? title;
+  }
+  const preview = text.length > 120 ? `${text.slice(0, 117)}…` : text;
+  const recipients = await recipientsOf(c, user.id);
+  await Promise.all(
+    recipients.map((uid) =>
+      sendPushToUser(uid, () => ({
+        title,
+        body: c.eventId ? `${user.name}: ${preview}` : preview,
+        url: `/chats/${c.id}`,
+        tag: `chat-${c.id}`,
+      })),
+    ),
+  );
+  return { id: m.id, userId: m.userId, body: m.body, createdAt: m.createdAt.toISOString() };
 }

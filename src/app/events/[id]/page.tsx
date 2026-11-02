@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   addExpenseItem,
+  addFriendToEvent,
   addParticipant,
   addSettlement,
   deleteEvent,
@@ -20,6 +21,8 @@ import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { getEventAccess, getItemsWithPayments, TYPE_ICON } from "@/lib/events";
 import { getProfile, getRates } from "@/lib/finance";
+import { getRelations, getUsersInfo } from "@/lib/people";
+import Avatar from "@/components/Avatar";
 import { formatDate, formatMoney, todayISO } from "@/lib/forecast";
 import { ensureCreatorParticipant, eventBalances, getSplitData, payerOf, transfers } from "@/lib/split";
 
@@ -75,6 +78,10 @@ export default async function EventPage({
   }
 
   const balances = eventBalances(ev, items, pays, parts, shares, setts, toEv);
+  // Друзья, которых ещё нет в событии — добавить одним нажатием.
+  const rel = canEdit ? await getRelations(user.id) : { friends: [] as { userId: string }[] };
+  const friendIds = rel.friends.map((f) => f.userId).filter((id) => !parts.some((p) => p.userId === id));
+  const people = await getUsersInfo([...friendIds, ...parts.map((p) => p.userId ?? "")]);
   const trans = transfers(balances);
 
   const dateText = ev.startDate
@@ -95,7 +102,12 @@ export default async function EventPage({
           {!canEdit && ` · 👁 ${t.sh.readOnly}`}
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{ev.title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{dateText}</p>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <p className="text-sm text-slate-500">{dateText}</p>
+          <Link href={`/chats/event/${ev.id}`} className="shrink-0 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 active:bg-emerald-100">
+            💬 {t.ch.eventChat}
+          </Link>
+        </div>
         {multi && (
           <a href="#people" className="mt-2 flex flex-wrap items-center gap-1.5">
             {parts.map((p) => (
@@ -105,7 +117,10 @@ export default async function EventPage({
                   p.userId ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-white text-slate-600 ring-slate-200"
                 }`}
               >
-                {p.userId === user.id ? t.pt.you : p.displayName}
+                <span className="inline-flex items-center gap-1">
+                  {p.userId && <Avatar name={p.displayName} src={people.get(p.userId)?.avatar} seed={p.userId} size={16} />}
+                  {p.userId === user.id ? t.pt.you : p.displayName}
+                </span>
               </span>
             ))}
           </a>
@@ -364,6 +379,26 @@ export default async function EventPage({
               </li>
             ))}
           </ul>
+          {canEdit && friendIds.length > 0 && (
+            <div className="mb-3">
+              <p className="mb-1.5 text-xs font-medium text-slate-500">{t.fr.fromFriends}</p>
+              <div className="flex flex-wrap gap-2">
+                {friendIds.map((fid) => {
+                  const f = people.get(fid);
+                  return (
+                    <form key={fid} action={addFriendToEvent}>
+                      <input type="hidden" name="eventId" value={ev.id} />
+                      <input type="hidden" name="userId" value={fid} />
+                      <button className="inline-flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1 text-sm ring-1 ring-slate-300 active:bg-slate-100">
+                        <Avatar name={f?.name ?? "?"} src={f?.avatar} seed={fid} size={24} />
+                        {f?.name ?? "—"} ＋
+                      </button>
+                    </form>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {canEdit && (
           <form action={addParticipant} className="flex gap-2">
             <input type="hidden" name="eventId" value={ev.id} />
