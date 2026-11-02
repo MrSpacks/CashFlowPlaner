@@ -23,7 +23,7 @@ export default function AuthForm({
     error === "invalid" ? t.errInvalid : error === "exists" ? t.errExists : error === "password" ? t.passwordHint : error ? t.errGeneric : null;
 
   return (
-    <div className="flex min-h-dvh flex-col justify-center px-6 py-10">
+    <div className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center px-6 py-10">
       <div className="mb-8 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icons/icon-192.png" alt="" className="mx-auto mb-3 h-16 w-16 rounded-2xl" />

@@ -73,7 +73,7 @@ export default async function ForecastPage() {
           </ul>
         </div>
       )}
-      <ul className="space-y-3 px-4">
+      <ul className="space-y-3 px-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:grid-cols-3">
         {f.months.map((mo) => {
           const s = stateStyle[mo.state];
           return (

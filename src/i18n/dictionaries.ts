@@ -51,6 +51,7 @@ const ru = {
     db: "База данных",
   },
   lang: { title: "Язык", auto: "Как на телефоне" },
+  theme: { title: "Тема", system: "Как в системе", light: "Светлая", dark: "Тёмная" },
   auth: {
     loginTitle: "Вход",
     registerTitle: "Регистрация",
@@ -268,6 +269,7 @@ const cs: Dict = {
     db: "Databáze",
   },
   lang: { title: "Jazyk", auto: "Podle telefonu" },
+  theme: { title: "Motiv", system: "Podle systému", light: "Světlý", dark: "Tmavý" },
   auth: {
     loginTitle: "Přihlášení",
     registerTitle: "Registrace",
@@ -483,6 +485,7 @@ const en: Dict = {
     db: "Database",
   },
   lang: { title: "Language", auto: "Same as phone" },
+  theme: { title: "Theme", system: "System", light: "Light", dark: "Dark" },
   auth: {
     loginTitle: "Sign in",
     registerTitle: "Sign up",

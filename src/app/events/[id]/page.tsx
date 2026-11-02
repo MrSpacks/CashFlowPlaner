@@ -111,6 +111,8 @@ export default async function EventPage({
           ))}
         </div>
 
+        <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-6 lg:space-y-0">
+        <div className="space-y-4">
         {/* Траты */}
         <section>
           <h2 className="mb-2 text-sm font-medium text-slate-500">{t.ev.expenses}</h2>
@@ -166,6 +168,67 @@ export default async function EventPage({
           )}
         </section>
 
+        {/* Добавить трату */}
+        {canEdit && (
+        <Card>
+          <h2 className="mb-3 font-semibold">{t.ev.addExpense}</h2>
+          <form action={addExpenseItem} className="space-y-3">
+            <input type="hidden" name="eventId" value={ev.id} />
+            <div>
+              <label className={labelCls}>{t.ev.expenseName}</label>
+              <input name="title" required placeholder={t.ev.expensePlaceholder} className={inputCls} />
+            </div>
+            <div className="grid grid-cols-[1fr_96px] gap-2">
+              <div>
+                <label className={labelCls}>{t.common.amount}</label>
+                <input name="amount" inputMode="decimal" required className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>{t.common.currency}</label>
+                <CurrencySelect defaultValue={cur} />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>{t.ev.dueDate}</label>
+              <input name="due" type="date" className={inputCls} />
+              <p className="mt-1 text-xs text-slate-400">{t.ev.dueHint}</p>
+            </div>
+            {multi && (
+              <>
+                <div>
+                  <label className={labelCls}>{t.pt.payer}</label>
+                  <select name="payer" defaultValue={me?.id} className={inputCls}>
+                    {parts.map((p) => (
+                      <option key={p.id} value={p.id}>{nameOf(p.id)}</option>
+                    ))}
+                  </select>
+                </div>
+                <fieldset>
+                  <legend className={labelCls}>{t.pt.splitBetween}</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {parts.map((p) => (
+                      <label key={p.id} className="cursor-pointer">
+                        <input type="checkbox" name="split" value={p.id} defaultChecked className="peer sr-only" />
+                        <span className="inline-block rounded-full px-3 py-1 text-sm ring-1 ring-slate-300 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 peer-checked:ring-emerald-400">
+                          {nameOf(p.id)}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+              </>
+            )}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="estimate" defaultChecked className="h-5 w-5 accent-emerald-600" />
+              {t.ev.estimate}
+            </label>
+            <button className={`${btnCls} w-full`}>{t.common.add}</button>
+          </form>
+        </Card>
+        )}
+
+        </div>
+        <div className="space-y-4">
         {/* Кто кому должен */}
         {multi && (
           <section>
@@ -238,65 +301,6 @@ export default async function EventPage({
           </section>
         )}
 
-        {/* Добавить трату */}
-        {canEdit && (
-        <Card>
-          <h2 className="mb-3 font-semibold">{t.ev.addExpense}</h2>
-          <form action={addExpenseItem} className="space-y-3">
-            <input type="hidden" name="eventId" value={ev.id} />
-            <div>
-              <label className={labelCls}>{t.ev.expenseName}</label>
-              <input name="title" required placeholder={t.ev.expensePlaceholder} className={inputCls} />
-            </div>
-            <div className="grid grid-cols-[1fr_96px] gap-2">
-              <div>
-                <label className={labelCls}>{t.common.amount}</label>
-                <input name="amount" inputMode="decimal" required className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>{t.common.currency}</label>
-                <CurrencySelect defaultValue={cur} />
-              </div>
-            </div>
-            <div>
-              <label className={labelCls}>{t.ev.dueDate}</label>
-              <input name="due" type="date" className={inputCls} />
-              <p className="mt-1 text-xs text-slate-400">{t.ev.dueHint}</p>
-            </div>
-            {multi && (
-              <>
-                <div>
-                  <label className={labelCls}>{t.pt.payer}</label>
-                  <select name="payer" defaultValue={me?.id} className={inputCls}>
-                    {parts.map((p) => (
-                      <option key={p.id} value={p.id}>{nameOf(p.id)}</option>
-                    ))}
-                  </select>
-                </div>
-                <fieldset>
-                  <legend className={labelCls}>{t.pt.splitBetween}</legend>
-                  <div className="flex flex-wrap gap-2">
-                    {parts.map((p) => (
-                      <label key={p.id} className="cursor-pointer">
-                        <input type="checkbox" name="split" value={p.id} defaultChecked className="peer sr-only" />
-                        <span className="inline-block rounded-full px-3 py-1 text-sm ring-1 ring-slate-300 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 peer-checked:ring-emerald-400">
-                          {nameOf(p.id)}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              </>
-            )}
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="estimate" defaultChecked className="h-5 w-5 accent-emerald-600" />
-              {t.ev.estimate}
-            </label>
-            <button className={`${btnCls} w-full`}>{t.common.add}</button>
-          </form>
-        </Card>
-        )}
-
         {/* Участники */}
         <Card>
           <h2 className="mb-1 font-semibold">{t.pt.title}</h2>
@@ -361,6 +365,8 @@ export default async function EventPage({
             </form>
           </details>
         )}
+        </div>
+        </div>
       </div>
     </>
   );

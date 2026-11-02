@@ -14,7 +14,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   const { t } = await getI18n();
   const [inv] = await db.select().from(calendarInvites).where(eq(calendarInvites.token, token)).limit(1);
   const invalid = (
-    <div className="flex min-h-dvh items-center px-6">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md items-center px-6">
       <Card className="w-full text-center">
         <p className="text-slate-600">{t.sh.joinInvalid}</p>
         <Link href="/" className={`${btnCls} mt-4 w-full`}>OK</Link>
@@ -34,7 +34,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   const next = `/join/${token}`;
 
   return (
-    <div className="flex min-h-dvh flex-col justify-center px-6 py-10">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-6 py-10">
       <Card className="text-center">
         <p className="text-4xl">📅</p>
         <p className="mt-2 text-sm text-slate-500">{t.sh.joinTitle}</p>

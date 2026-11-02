@@ -22,7 +22,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
 
   if (!p || !ev) {
     return (
-      <div className="flex min-h-dvh items-center px-6">
+      <div className="mx-auto flex min-h-dvh w-full max-w-md items-center px-6">
         <Card className="w-full text-center">
           <p className="text-slate-600">{t.pt.inviteUsed}</p>
           <Link href="/" className={`${btnCls} mt-4 w-full`}>OK</Link>
@@ -45,7 +45,7 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   }
 
   return (
-    <div className="flex min-h-dvh flex-col justify-center px-6 py-10">
+    <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-6 py-10">
       <Card className="text-center">
         <p className="text-4xl">{TYPE_ICON[ev.type]}</p>
         <p className="mt-2 text-sm text-slate-500">{t.pt.inviteTitle}</p>

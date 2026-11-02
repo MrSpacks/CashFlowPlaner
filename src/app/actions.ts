@@ -57,6 +57,15 @@ export async function setLanguage(fd: FormData) {
   revalidatePath("/", "layout");
 }
 
+// ---------- тема ----------
+export async function setTheme(fd: FormData) {
+  const v = str(fd, "theme");
+  const jar = await cookies();
+  if (v === "light" || v === "dark") jar.set("theme", v, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  else jar.delete("theme");
+  revalidatePath("/", "layout");
+}
+
 // ---------- вход / регистрация ----------
 export async function signInAction(fd: FormData) {
   let err = "";

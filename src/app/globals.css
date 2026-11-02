@@ -1,16 +1,101 @@
 @import "tailwindcss";
 
+/* dark: вариант по атрибуту <html data-theme="dark"> (ставится по выбору пользователя или системы) */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   color-scheme: light;
+  --app-bg: #f8fafc;
+  --app-fg: #0f172a;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #020617;
+  --app-fg: #e2e8f0;
 }
 
 html,
 body {
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--app-bg);
+  color: var(--app-fg);
   -webkit-tap-highlight-color: transparent;
 }
 
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Десктоп: место под боковое меню, когда оно есть на странице */
+@media (min-width: 1024px) {
+  body:has(#sidenav) #content {
+    padding-left: 15rem;
+  }
+}
+
+/* ---------- Тёмная тема ----------
+   Интерфейс свёрстан светлыми утилитами Tailwind; здесь они перекрашиваются
+   для тёмной темы в одном месте, чтобы не дублировать dark:-классы на каждом экране. */
+[data-theme="dark"] {
+  /* поверхности */
+  .bg-white { background-color: #0f172a; }
+  .bg-white\/95 { background-color: rgb(15 23 42 / 0.95); }
+  .bg-slate-50 { background-color: #1e293b; }
+  .bg-slate-100 { background-color: #1e293b; }
+  .bg-slate-200 { background-color: #334155; }
+  .active\:bg-slate-50:active,
+  .active\:bg-slate-100:active,
+  .active\:bg-slate-200:active { background-color: #334155; }
+
+  /* текст */
+  .text-slate-900 { color: #f8fafc; }
+  .text-slate-800 { color: #e2e8f0; }
+  .text-slate-700 { color: #cbd5e1; }
+  .text-slate-600 { color: #a3b1c6; }
+  .text-slate-500 { color: #8b9ab0; }
+  .text-slate-400 { color: #64748b; }
+  .text-slate-300 { color: #475569; }
+
+  /* рамки и разделители */
+  .ring-slate-200 { --tw-ring-color: #1e293b; }
+  .ring-slate-300 { --tw-ring-color: #334155; }
+  .border-slate-100,
+  .border-slate-200 { border-color: #1e293b; }
+  .border-slate-300 { border-color: #334155; }
+  .divide-slate-100 > :not(:last-child) { border-color: #1e293b; }
+  .shadow-sm { --tw-shadow-color: rgb(0 0 0 / 0.4); }
+
+  /* зелёный акцент */
+  .bg-emerald-50 { background-color: rgb(16 185 129 / 0.12); }
+  .bg-emerald-100 { background-color: rgb(16 185 129 / 0.18); }
+  .active\:bg-emerald-100:active { background-color: rgb(16 185 129 / 0.25); }
+  .text-emerald-600,
+  .text-emerald-700 { color: #34d399; }
+  .text-emerald-800 { color: #6ee7b7; }
+  .ring-emerald-200,
+  .ring-emerald-300 { --tw-ring-color: rgb(16 185 129 / 0.35); }
+  .peer:checked ~ .peer-checked\:bg-emerald-50 { background-color: rgb(16 185 129 / 0.15); }
+  .peer:checked ~ .peer-checked\:text-emerald-700 { color: #34d399; }
+  .peer:checked ~ .peer-checked\:ring-emerald-400 { --tw-ring-color: #10b981; }
+
+  /* жёлтый (впритык, напоминания) */
+  .bg-amber-50 { background-color: rgb(245 158 11 / 0.12); }
+  .bg-amber-100 { background-color: rgb(245 158 11 / 0.18); }
+  .text-amber-600,
+  .text-amber-700 { color: #fbbf24; }
+  .text-amber-800,
+  .text-amber-900 { color: #fcd34d; }
+  .ring-amber-200 { --tw-ring-color: rgb(245 158 11 / 0.35); }
+
+  /* красный (минус, просрочка) */
+  .bg-rose-50 { background-color: rgb(244 63 94 / 0.12); }
+  .bg-rose-100 { background-color: rgb(244 63 94 / 0.18); }
+  .text-rose-600,
+  .text-rose-700,
+  .active\:text-rose-600:active { color: #fb7185; }
+  .ring-rose-300 { --tw-ring-color: rgb(244 63 94 / 0.45); }
+
+  /* поля ввода */
+  input::placeholder,
+  textarea::placeholder { color: #64748b; }
 }

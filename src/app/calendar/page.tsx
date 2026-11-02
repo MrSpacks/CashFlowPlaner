@@ -62,6 +62,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader title={t.calendar.title} />
+      <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-2">
       <div className="mx-4 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
         <div className="mb-2 flex items-center justify-between">
           <Link href={`/calendar?m=${addMonths(month, -1)}`} className="rounded-lg p-1.5 text-slate-500 active:bg-slate-100" aria-label="prev">
@@ -101,7 +102,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         </div>
       </div>
 
-      <div className="mt-5 px-4">
+      <div className="mt-5 px-4 lg:mt-0">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-medium text-slate-500">{t.ev.inMonth}</h2>
           <Link href="/events" className="text-sm text-emerald-700">{t.ev.allEvents}</Link>
@@ -114,6 +115,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         <Link href={`/events/new${isThisMonth ? "" : `?start=${first}`}`} className={`${btnCls} mt-4 w-full`}>
           ＋ {t.ev.newTitle}
         </Link>
+      </div>
       </div>
     </>
   );

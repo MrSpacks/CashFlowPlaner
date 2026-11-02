@@ -1,12 +1,12 @@
 import { sql } from "drizzle-orm";
-import { setLanguage, signOutAction } from "@/app/actions";
+import { setLanguage, setTheme, signOutAction } from "@/app/actions";
 import IncomingInvites from "@/components/IncomingInvites";
 import PageHeader from "@/components/PageHeader";
 import PushToggle from "@/components/PushToggle";
 import { RowLink, btnGhostCls } from "@/components/ui";
 import { getDb } from "@/db";
 import { LANGUAGE_NAMES, LOCALES } from "@/i18n/dictionaries";
-import { getI18n } from "@/i18n/server";
+import { getI18n, getTheme } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { cookies } from "next/headers";
 
@@ -27,6 +27,7 @@ export default async function MorePage() {
   const user = await requireUser();
   const { t, locale } = await getI18n();
   const chosen = (await cookies()).get("lang")?.value ?? "auto";
+  const theme = await getTheme();
   const n = await tableCount();
 
   return (
@@ -74,6 +75,24 @@ export default async function MorePage() {
               </button>
             );
           })}
+        </div>
+      </form>
+
+      <form action={setTheme} className="mx-4 mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        <p className="mb-2 text-sm font-medium">{t.theme.title}</p>
+        <div className="grid grid-cols-3 gap-2">
+          {(["system", "light", "dark"] as const).map((th) => (
+            <button
+              key={th}
+              name="theme"
+              value={th}
+              className={`rounded-xl px-2 py-2 text-sm ring-1 ${
+                theme === th ? "bg-emerald-50 font-semibold text-emerald-700 ring-emerald-300" : "ring-slate-200"
+              }`}
+            >
+              {th === "system" ? "🖥️" : th === "light" ? "☀️" : "🌙"} {t.theme[th]}
+            </button>
+          ))}
         </div>
       </form>
 

@@ -21,3 +21,10 @@ export async function getI18n() {
   const locale = await getLocale();
   return { locale, t: DICTIONARIES[locale], intl: INTL_LOCALE[locale] };
 }
+
+export type Theme = "system" | "light" | "dark";
+
+export async function getTheme(): Promise<Theme> {
+  const v = (await cookies()).get("theme")?.value;
+  return v === "light" || v === "dark" ? v : "system";
+}
