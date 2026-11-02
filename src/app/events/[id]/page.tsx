@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   addExpenseItem,
@@ -149,14 +150,25 @@ export default async function EventPage({
                         )}
                       </button>
                     </form>
-                    <div className="min-w-0 flex-1">
-                      <p className={`truncate font-medium ${isPaid ? "text-slate-400 line-through" : ""}`}>{it.title}</p>
-                      <p className={`text-xs ${overdue ? "text-rose-600" : "text-slate-400"}`}>{sub.join(" · ")}</p>
-                    </div>
-                    <span className="shrink-0 text-right">
-                      {it.isEstimate && !isPaid ? "~" : ""}
-                      {money(Number(it.amount), it.currency)}
-                    </span>
+                    <Link
+                      href={canEdit ? `/events/${ev.id}/items/${it.id}` : "#"}
+                      aria-label={t.ev.editExpense}
+                      className="flex min-w-0 flex-1 items-center gap-3 rounded-lg active:bg-slate-50"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className={`truncate font-medium ${isPaid ? "text-slate-400 line-through" : ""}`}>{it.title}</p>
+                        <p className={`text-xs ${overdue ? "text-rose-600" : "text-slate-400"}`}>{sub.join(" · ")}</p>
+                      </div>
+                      <span className="shrink-0 text-right">
+                        {it.isEstimate && !isPaid ? "~" : ""}
+                        {money(Number(it.amount), it.currency)}
+                      </span>
+                      {canEdit && (
+                        <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-slate-300" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" />
+                        </svg>
+                      )}
+                    </Link>
                     <form action={deleteExpenseItem}>
                       <input type="hidden" name="id" value={it.id} />
                       <button aria-label={t.common.delete} className="p-1 text-slate-300 active:text-rose-600">
