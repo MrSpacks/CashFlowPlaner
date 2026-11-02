@@ -1,5 +1,6 @@
 import { createEvent, updateEvent } from "@/app/actions";
 import { CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
+import DatePicker from "@/components/DatePicker";
 import type { Dict } from "@/i18n/dictionaries";
 import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, TYPE_ICON, type EventRow } from "@/lib/events";
 
@@ -9,9 +10,11 @@ export default function EventForm({
   defaults,
   baseCurrency,
   privateLabel,
+  dates,
 }: {
   t: Dict["ev"];
   privateLabel: string;
+  dates: { months: string[]; weekdays: string[]; today: string; clear: string; placeholder: string };
   event?: EventRow;
   defaults?: { status?: string; start?: string; type?: string };
   baseCurrency: string;
@@ -48,11 +51,11 @@ export default function EventForm({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className={labelCls}>{t.start}</label>
-          <input name="start" type="date" defaultValue={event?.startDate ?? defaults?.start ?? ""} className={inputCls} />
+          <DatePicker name="start" defaultValue={event?.startDate ?? defaults?.start ?? ""} labels={dates} />
         </div>
         <div>
           <label className={labelCls}>{t.end}</label>
-          <input name="end" type="date" defaultValue={event?.endDate ?? ""} className={inputCls} />
+          <DatePicker name="end" defaultValue={event?.endDate ?? ""} labels={dates} />
         </div>
       </div>
 

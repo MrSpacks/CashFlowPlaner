@@ -9,10 +9,12 @@ import {
   removeParticipant,
   toggleExpensePaid,
 } from "@/app/actions";
+import DatePicker from "@/components/DatePicker";
 import EventForm from "@/components/EventForm";
 import QrCode from "@/components/QrCode";
 import ShareLink from "@/components/ShareLink";
 import { BackLink, Card, CurrencySelect, btnCls, btnGhostCls, inputCls, labelCls } from "@/components/ui";
+import { dateLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { getEventAccess, getItemsWithPayments, TYPE_ICON } from "@/lib/events";
@@ -190,7 +192,7 @@ export default async function EventPage({
             </div>
             <div>
               <label className={labelCls}>{t.ev.dueDate}</label>
-              <input name="due" type="date" className={inputCls} />
+              <DatePicker name="due" labels={dateLabels(t)} />
               <p className="mt-1 text-xs text-slate-400">{t.ev.dueHint}</p>
             </div>
             {multi && (
@@ -350,7 +352,7 @@ export default async function EventPage({
         <details className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
           <summary className="cursor-pointer font-semibold">{t.ev.edit}</summary>
           <div className="mt-3">
-            <EventForm t={t.ev} event={ev} baseCurrency={profile.baseCurrency} privateLabel={t.sh.privateEvent} />
+            <EventForm t={t.ev} event={ev} baseCurrency={profile.baseCurrency} privateLabel={t.sh.privateEvent} dates={dateLabels(t)} />
           </div>
         </details>
         )}

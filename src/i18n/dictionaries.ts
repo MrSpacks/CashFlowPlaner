@@ -12,7 +12,7 @@ const ru = {
   months: ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"],
   weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
   nav: { forecast: "Прогноз", calendar: "Календарь", add: "Добавить", ideas: "Идеи", more: "Ещё" },
-  common: { save: "Сохранить", add: "Добавить", delete: "Удалить", back: "Назад", currency: "Валюта", amount: "Сумма", soon: "скоро" },
+  common: { save: "Сохранить", add: "Добавить", delete: "Удалить", back: "Назад", currency: "Валюта", amount: "Сумма", soon: "скоро", today: "Сегодня", clear: "Очистить", pickDate: "Выберите дату", pickDay: "Выберите день", dayFormat: "{d}-го числа" },
   forecast: {
     title: "Прогноз",
     subtitle: "Сколько придёт, сколько уйдёт и что останется",
@@ -230,7 +230,7 @@ const cs: Dict = {
   months: ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"],
   weekdays: ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"],
   nav: { forecast: "Přehled", calendar: "Kalendář", add: "Přidat", ideas: "Nápady", more: "Další" },
-  common: { save: "Uložit", add: "Přidat", delete: "Smazat", back: "Zpět", currency: "Měna", amount: "Částka", soon: "brzy" },
+  common: { save: "Uložit", add: "Přidat", delete: "Smazat", back: "Zpět", currency: "Měna", amount: "Částka", soon: "brzy", today: "Dnes", clear: "Vymazat", pickDate: "Vyberte datum", pickDay: "Vyberte den", dayFormat: "{d}. den v měsíci" },
   forecast: {
     title: "Přehled",
     subtitle: "Kolik přijde, kolik odejde a co zbude",
@@ -446,7 +446,7 @@ const en: Dict = {
   months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   weekdays: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
   nav: { forecast: "Forecast", calendar: "Calendar", add: "Add", ideas: "Ideas", more: "More" },
-  common: { save: "Save", add: "Add", delete: "Delete", back: "Back", currency: "Currency", amount: "Amount", soon: "soon" },
+  common: { save: "Save", add: "Add", delete: "Delete", back: "Back", currency: "Currency", amount: "Amount", soon: "soon", today: "Today", clear: "Clear", pickDate: "Pick a date", pickDay: "Pick a day", dayFormat: "on the {d}" },
   forecast: {
     title: "Forecast",
     subtitle: "What comes in, what goes out and what's left",
@@ -659,3 +659,11 @@ const en: Dict = {
 };
 
 export const DICTIONARIES: Record<Locale, Dict> = { ru, cs, en };
+
+/** Подписи для выбора даты (только строки — можно передавать в клиентские компоненты). */
+export function dateLabels(t: Dict) {
+  return { months: t.months, weekdays: t.weekdays, today: t.common.today, clear: t.common.clear, placeholder: t.common.pickDate };
+}
+export function dayLabels(t: Dict) {
+  return { placeholder: t.common.pickDay, clear: t.common.clear, dayFormat: t.common.dayFormat };
+}

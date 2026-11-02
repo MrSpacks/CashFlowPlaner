@@ -1,6 +1,8 @@
 import { addFixedExpense, deleteFixedExpense } from "@/app/actions";
+import { DayOfMonthPicker } from "@/components/DatePicker";
 import PageHeader from "@/components/PageHeader";
 import { BackLink, Card, CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
+import { dayLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { getFixedExpenses, getProfile } from "@/lib/finance";
@@ -68,7 +70,7 @@ export default async function ExpensesPage() {
             </div>
             <div>
               <label className={labelCls}>{t.fixed.day}</label>
-              <input name="day" type="number" min={1} max={31} inputMode="numeric" className={inputCls} />
+              <DayOfMonthPicker name="day" labels={dayLabels(t)} />
             </div>
             <button className={`${btnCls} w-full`}>{t.common.add}</button>
           </form>

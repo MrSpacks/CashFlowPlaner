@@ -1,6 +1,7 @@
 import EventForm from "@/components/EventForm";
 import PageHeader from "@/components/PageHeader";
 import { BackLink, Card } from "@/components/ui";
+import { dateLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { getProfile } from "@/lib/finance";
@@ -23,7 +24,7 @@ export default async function NewEventPage({
       <PageHeader title={t.ev.newTitle} />
       <div className="px-4">
         <Card>
-          <EventForm t={t.ev} defaults={defaults} baseCurrency={profile.baseCurrency} privateLabel={t.sh.privateEvent} />
+          <EventForm t={t.ev} defaults={defaults} baseCurrency={profile.baseCurrency} privateLabel={t.sh.privateEvent} dates={dateLabels(t)} />
         </Card>
       </div>
     </>

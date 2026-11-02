@@ -1,6 +1,8 @@
 import { addIncomeSource, deleteIncomeSource, saveIncomeMonth } from "@/app/actions";
+import { DayOfMonthPicker } from "@/components/DatePicker";
 import PageHeader from "@/components/PageHeader";
 import { BackLink, Card, CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
+import { dayLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { getIncomeData, getProfile } from "@/lib/finance";
@@ -94,7 +96,7 @@ export default async function IncomePage() {
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className={labelCls}>{t.income.payDay}</label>
-                <input name="payDay" type="number" min={1} max={31} inputMode="numeric" className={inputCls} />
+                <DayOfMonthPicker name="payDay" labels={dayLabels(t)} />
               </div>
               <div>
                 <label className={labelCls}>{t.common.currency}</label>
