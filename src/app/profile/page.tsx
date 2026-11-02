@@ -38,7 +38,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
               <p className="truncate text-lg font-semibold">{user.name}</p>
               <p className="truncate text-sm text-slate-500">@{username}</p>
               <div className="mt-2">
-                <AvatarUpload hasAvatar={!!src} t={{ change: t.pr.changePhoto, remove: t.pr.removePhoto, error: t.pr.photoError }} />
+                <AvatarUpload hasAvatar={!!src} t={{ change: t.pr.changePhoto, remove: t.pr.removePhoto, error: t.pr.photoError, save: t.common.save, cancel: t.fr.cancel, zoom: t.pr.zoom }} />
               </div>
             </div>
           </div>

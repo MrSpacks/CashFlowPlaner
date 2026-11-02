@@ -15,11 +15,11 @@ const Arrow = ({ d }: { d: string }) => (
   </svg>
 );
 
-export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ m?: string; d?: string }> }) {
   const user = await requireUser();
   const { t, intl } = await getI18n();
   const today = todayISO();
-  const { m } = await searchParams;
+  const { m, d: dayParam } = await searchParams;
   const month = m && /^\d{4}-\d{2}$/.test(m) ? m : today.slice(0, 7);
   const [year, mon] = month.split("-").map(Number);
   const first = `${month}-01`;
@@ -42,12 +42,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   // Точки по дням.
   const dots = new Map<number, string[]>();
+  const byDay = new Map<number, string[]>(); // день → id событий
   for (const e of inMonth) {
     const s = e.recurrence !== "none" ? e.displayDate! : e.startDate!;
     const end = e.recurrence !== "none" ? s : e.endDate ?? s;
     for (let d = 1; d <= daysInMonth(month); d++) {
       const iso = `${month}-${String(d).padStart(2, "0")}`;
-      if (iso >= s && iso <= end) dots.set(d, [...(dots.get(d) ?? []), TYPE_DOT[e.type]]);
+      if (iso >= s && iso <= end) {
+        dots.set(d, [...(dots.get(d) ?? []), TYPE_DOT[e.type]]);
+        byDay.set(d, [...(byDay.get(d) ?? []), e.id]);
+      }
     }
   }
 
@@ -57,6 +61,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     ...Array.from({ length: daysInMonth(month) }, (_, i) => i + 1),
   ];
   const isThisMonth = month === today.slice(0, 7);
+  const selDay = dayParam && dayParam.startsWith(month) ? Number(dayParam.slice(8)) : null;
+  const dayIso = (d: number) => `${month}-${String(d).padStart(2, "0")}`;
+  // Нажатие на день: одно событие — сразу открыть, несколько — показать их под календарём, пусто — создать.
+  const dayHref = (d: number) => {
+    const ids = byDay.get(d) ?? [];
+    if (ids.length === 1) return `/events/${ids[0]}`;
+    if (ids.length > 1) return `/calendar?m=${month}&d=${dayIso(d)}`;
+    return `/events/new?start=${dayIso(d)}`;
+  };
+  const listed = selDay ? inMonth.filter((e) => (byDay.get(selDay) ?? []).includes(e.id)) : inMonth;
   const todayDay = Number(today.slice(8));
 
   return (
@@ -83,9 +97,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             d ? (
               <Link
                 key={i}
-                href={`/events/new?start=${month}-${String(d).padStart(2, "0")}`}
+                href={dayHref(d)}
                 className={`flex aspect-square flex-col items-center justify-center rounded-lg ${
-                  isThisMonth && d === todayDay ? "bg-emerald-600 font-semibold text-white" : "text-slate-700 active:bg-slate-100"
+                  isThisMonth && d === todayDay
+                    ? "bg-emerald-600 font-semibold text-white"
+                    : d === selDay
+                      ? "bg-emerald-50 font-semibold text-emerald-700 ring-1 ring-emerald-300"
+                      : (byDay.get(d)?.length ?? 0) > 0
+                        ? "font-semibold text-slate-900 active:bg-slate-100"
+                        : "text-slate-700 active:bg-slate-100"
                 }`}
               >
                 {d}
@@ -104,19 +124,29 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
       <div className="mt-5 px-4 lg:mt-0">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-slate-500">{t.ev.inMonth}</h2>
+          <h2 className="text-sm font-medium text-slate-500">
+            {selDay ? `${t.ev.onDay}: ${selDay}. ${t.months[mon - 1].toLowerCase()}` : t.ev.inMonth}
+            {selDay && (
+              <Link href={`/calendar?m=${month}`} className="ml-2 text-emerald-700">
+                ✕ {t.ev.showAll}
+              </Link>
+            )}
+          </h2>
           <span className="flex gap-3">
             <Link href="/ideas" className="text-sm text-emerald-700">💡 {t.ideas.title}</Link>
             <Link href="/events" className="text-sm text-emerald-700">{t.ev.allEvents}</Link>
           </span>
         </div>
-        {inMonth.length ? (
-          <EventList events={inMonth} t={t.ev} intl={intl} />
+        {listed.length ? (
+          <EventList events={listed} t={t.ev} intl={intl} />
         ) : (
           <p className="text-center text-sm text-slate-500">{t.calendar.empty}</p>
         )}
-        <Link href={`/events/new${isThisMonth ? "" : `?start=${first}`}`} className={`${btnCls} mt-4 w-full`}>
-          ＋ {t.ev.newTitle}
+        <Link
+          href={selDay ? `/events/new?start=${dayIso(selDay)}` : `/events/new${isThisMonth ? "" : `?start=${first}`}`}
+          className={`${btnCls} mt-4 w-full`}
+        >
+          ＋ {selDay ? t.ev.newOnDay : t.ev.newTitle}
         </Link>
       </div>
       </div>
