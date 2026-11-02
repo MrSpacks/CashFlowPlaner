@@ -28,8 +28,14 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
   const [ev] = c.eventId ? await db.select().from(events).where(eq(events.id, c.eventId)).limit(1) : [];
 
   return (
-    <div className="lg:max-w-2xl">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+    <div
+      className="fixed inset-0 z-30 flex flex-col lg:static lg:z-auto lg:h-[calc(100dvh-3rem)] lg:max-w-2xl"
+      style={{ background: "var(--app-bg)" }}
+    >
+      <header
+        className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-3"
+        style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top))" }}
+      >
         <Link href="/chats" className="text-emerald-700" aria-label={t.common.back}>
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M15 18l-6-6 6-6" />
@@ -53,7 +59,7 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
           </Link>
         ) : null}
       </header>
-      <div className="pt-3">
+      <div className="flex min-h-0 flex-1 flex-col">
         <ChatView
           conversationId={c.id}
           me={user.id}

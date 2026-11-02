@@ -35,7 +35,7 @@ export default function ChatView({
   const [users, setUsers] = useState<Record<string, U>>(initialUsers);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
-  const bottom = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const lastAt = useRef<string | undefined>(initial.at(-1)?.createdAt);
 
   const add = useCallback((list: Msg[]) => {
@@ -49,7 +49,8 @@ export default function ChatView({
   }, []);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" });
+    const el = scroller.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [msgs.length]);
 
   useEffect(() => {
@@ -95,8 +96,8 @@ export default function ChatView({
   }
 
   return (
-    <div className="flex min-h-[60dvh] flex-col">
-      <div className="flex-1 space-y-2 px-4 pb-4">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div ref={scroller} className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-3">
         {msgs.length === 0 && <p className="py-10 text-center text-sm text-slate-500">{t.empty}</p>}
         {msgs.map((m, i) => {
           const mine = m.userId === me;
@@ -121,12 +122,12 @@ export default function ChatView({
             </div>
           );
         })}
-        <div ref={bottom} />
       </div>
 
       <form
         onSubmit={submit}
-        className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] flex items-end gap-2 border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur lg:bottom-0"
+        className="flex shrink-0 items-end gap-2 border-t border-slate-200 bg-white px-3 pt-2"
+        style={{ paddingBottom: "calc(0.5rem + env(safe-area-inset-bottom))" }}
       >
         <textarea
           value={text}

@@ -74,6 +74,8 @@ export default function BottomNav({
 }) {
   const pathname = usePathname();
   if (HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
+  // Внутри переписки — как в мессенджерах: без нижнего меню, поле ввода у самого низа.
+  const inChat = /^\/chats\/[0-9a-f-]{36}$/i.test(pathname);
 
   return (
     <>
@@ -130,7 +132,7 @@ export default function BottomNav({
 
       {/* нижнее меню */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden"
+        className={`fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 backdrop-blur lg:hidden ${inChat ? "hidden" : ""}`}
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         {/* 5 равных колонок — «＋» всегда ровно по центру экрана */}
