@@ -42,7 +42,16 @@ export default async function MorePage() {
       <div className="mx-4 mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
         <p className="text-sm font-medium">{t.rm.pushTitle}</p>
         <p className="mb-3 text-xs text-slate-500">{t.rm.pushHint}</p>
-        <PushToggle t={t.rm} />
+        <PushToggle
+          t={{
+            pushOn: t.rm.pushOn,
+            pushOff: t.rm.pushOff,
+            pushEnabled: t.rm.pushEnabled,
+            pushUnsupported: t.rm.pushUnsupported,
+            pushDenied: t.rm.pushDenied,
+            test: t.rm.test,
+          }}
+        />
       </div>
 
       <form action={setLanguage} className="mx-4 mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
