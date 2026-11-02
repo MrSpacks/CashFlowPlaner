@@ -157,6 +157,12 @@ export function shiftYear(iso: string, year: number) {
 export async function listEventsWithTotals(userId: string) {
   const evs = await listUserEvents(userId);
   const { items, pays } = await getItemsWithPayments(evs.map((e) => e.id));
+  const partRows = evs.length
+    ? await db
+        .select({ eventId: eventParticipants.eventId })
+        .from(eventParticipants)
+        .where(inArray(eventParticipants.eventId, evs.map((e) => e.id)))
+    : [];
   return evs.map((e) => {
     let total = 0;
     let unpaid = 0;
@@ -167,7 +173,8 @@ export async function listEventsWithTotals(userId: string) {
         unpaid += Math.max(Number(it.amount) - p, 0);
       }
     }
-    return { ...e, total, unpaid };
+    const people = partRows.filter((r) => r.eventId === e.id).length;
+    return { ...e, total, unpaid, people };
   });
 }
 

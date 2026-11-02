@@ -96,6 +96,20 @@ export default async function EventPage({
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{ev.title}</h1>
         <p className="mt-1 text-sm text-slate-500">{dateText}</p>
+        {multi && (
+          <a href="#people" className="mt-2 flex flex-wrap items-center gap-1.5">
+            {parts.map((p) => (
+              <span
+                key={p.id}
+                className={`rounded-full px-2.5 py-0.5 text-xs ring-1 ${
+                  p.userId ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-white text-slate-600 ring-slate-200"
+                }`}
+              >
+                {p.userId === user.id ? t.pt.you : p.displayName}
+              </span>
+            ))}
+          </a>
+        )}
         {ev.notes && <p className="mt-2 whitespace-pre-line text-sm text-slate-600">{ev.notes}</p>}
       </header>
 
@@ -317,7 +331,7 @@ export default async function EventPage({
 
         {/* Участники */}
         <Card>
-          <h2 className="mb-1 font-semibold">{t.pt.title}</h2>
+          <h2 id="people" className="mb-1 scroll-mt-4 font-semibold">{t.pt.title}</h2>
           <p className="mb-3 text-xs text-slate-500">{t.pt.inviteHint}</p>
           {notfound && <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{t.pt.notFoundEmail}</p>}
           <ul className="mb-3 divide-y divide-slate-100 text-sm">
