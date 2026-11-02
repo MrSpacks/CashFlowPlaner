@@ -1,4 +1,4 @@
-import { getItemsWithPayments, listUserEvents, shiftYear } from "./events";
+import { getItemsWithPayments, listUserEvents, nextOccurrence } from "./events";
 import { getSplitData, payerOf } from "./split";
 
 export interface Reminder {
@@ -39,15 +39,19 @@ export async function getReminders(userId: string, today: string, payDays = 7, e
     const me = evParts.find((p) => p.userId === userId);
     if (ev.createdBy !== userId && !me) continue;
 
-    for (const it of items.filter((i) => i.eventId === ev.id && i.status !== "paid")) {
+    for (const it of items.filter((i) => i.eventId === ev.id && (i.status !== "paid" || ev.recurrence !== "none"))) {
       const payer = payerOf(it, ev, parts);
       if (evParts.length > 1 && payer !== me?.id) continue;
-      const due = it.dueDate ?? ev.startDate;
-      if (!due || due > payLimit) continue;
+      const base = it.dueDate ?? ev.startDate;
+      if (!base) continue;
+      // Повторяющиеся (аренда каждый месяц): напоминаем о ближайшем повторении.
+      const recurring = ev.recurrence !== "none" && base < today;
+      const due = recurring ? nextOccurrence(base, ev.recurrence, today) : base;
+      if (due > payLimit) continue;
       const paid = pays
         .filter((p) => p.expenseItemId === it.id && p.currency === it.currency)
         .reduce((a, p) => a + Number(p.amount), 0);
-      const left = Math.max(Number(it.amount) - paid, 0);
+      const left = recurring ? Number(it.amount) : Math.max(Number(it.amount) - paid, 0);
       if (left <= 0) continue;
       res.push({
         kind: due < today ? "overdue" : "due",
@@ -60,11 +64,7 @@ export async function getReminders(userId: string, today: string, payDays = 7, e
       });
     }
 
-    let start = ev.startDate;
-    if (start && ev.recurrence === "yearly") {
-      const y = Number(today.slice(0, 4));
-      start = shiftYear(start, y) >= today ? shiftYear(start, y) : shiftYear(start, y + 1);
-    }
+    const start = ev.startDate ? nextOccurrence(ev.startDate, ev.recurrence, today) : null;
     if (start && start >= today && start <= evLimit) {
       res.push({ kind: "event", title: ev.title, date: start, days: diffDays(today, start), eventId: ev.id });
     }

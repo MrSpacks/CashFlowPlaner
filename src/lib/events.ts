@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
+import { addMonths, dateInMonth } from "./forecast";
 import { calendarMembers, calendars, eventParticipants, events, expenseItems, expenseShares, payments, settlements } from "@/db/schema";
 
 export type EventRow = typeof events.$inferSelect;
@@ -168,4 +169,36 @@ export async function listEventsWithTotals(userId: string) {
     }
     return { ...e, total, unpaid };
   });
+}
+
+/** Дата k-го повторения (k=0 — исходная). */
+export function occurrence(start: string, rec: string, k: number) {
+  if (rec === "yearly") return shiftYear(start, Number(start.slice(0, 4)) + k);
+  if (rec === "monthly") return dateInMonth(addMonths(start.slice(0, 7), k), Number(start.slice(8)));
+  return start;
+}
+
+/** Ближайшее повторение не раньше from (для неповторяющихся — сама дата). */
+export function nextOccurrence(start: string, rec: string, from: string) {
+  if (rec !== "yearly" && rec !== "monthly") return start;
+  if (start >= from) return start;
+  const k0 =
+    rec === "yearly"
+      ? Number(from.slice(0, 4)) - Number(start.slice(0, 4))
+      : (Number(from.slice(0, 4)) - Number(start.slice(0, 4))) * 12 + Number(from.slice(5, 7)) - Number(start.slice(5, 7));
+  for (let k = Math.max(k0, 0); ; k++) {
+    const d = occurrence(start, rec, k);
+    if (d >= from) return d;
+  }
+}
+
+/** Повторение события в заданном месяце "YYYY-MM" (или null). */
+export function occurrenceInMonth(start: string, rec: string, month: string): string | null {
+  if (month < start.slice(0, 7)) return null;
+  if (rec === "monthly") return dateInMonth(month, Number(start.slice(8)));
+  if (rec === "yearly") {
+    const d = shiftYear(start, Number(month.slice(0, 4)));
+    return d.startsWith(month) ? d : null;
+  }
+  return null;
 }

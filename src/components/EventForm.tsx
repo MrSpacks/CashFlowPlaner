@@ -78,16 +78,28 @@ export default function EventForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_110px] items-end gap-2">
-        <label className="flex items-center gap-2 pb-2.5 text-sm">
-          <input type="checkbox" name="yearly" defaultChecked={event?.recurrence === "yearly"} className="h-5 w-5 accent-emerald-600" />
-          {t.yearly}
-        </label>
+      <div className="grid grid-cols-[1fr_110px] gap-2">
+        <div>
+          <label className={labelCls}>{t.repeat}</label>
+          <select name="recurrence" defaultValue={event?.recurrence ?? "none"} className={inputCls}>
+            {(["none", "monthly", "yearly"] as const).map((r) => (
+              <option key={r} value={r}>{t.repeatOpts[r]}</option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className={labelCls}>{t.expenses}</label>
           <CurrencySelect defaultValue={event?.currency ?? baseCurrency} />
         </div>
       </div>
+
+      {!event && (
+        <div>
+          <label className={labelCls}>{t.amount}</label>
+          <input name="amount" inputMode="decimal" className={inputCls} />
+          <p className="mt-1 text-xs text-slate-400">{t.amountHint}</p>
+        </div>
+      )}
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="private" defaultChecked={event?.visibility === "private"} className="h-5 w-5 accent-emerald-600" />

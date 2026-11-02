@@ -89,7 +89,7 @@ export default async function EventPage({
         <p className="text-sm text-slate-500">
           {TYPE_ICON[ev.type]} {t.ev.types[ev.type]} · {t.ev.statuses[ev.status]}
           {ev.priority !== "want" && ` · ${t.ev.priorities[ev.priority]}`}
-          {ev.recurrence === "yearly" && " · ↻"}
+          {ev.recurrence !== "none" && ` · ↻ ${t.ev.repeatOpts[ev.recurrence]}`}
           {ev.visibility === "private" && " · 🔒"}
           {!canEdit && ` · 👁 ${t.sh.readOnly}`}
         </p>

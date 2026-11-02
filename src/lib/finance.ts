@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { balanceSnapshots, fixedExpenses, incomes, incomeSources, profiles } from "@/db/schema";
-import { getItemsWithPayments, listUserEvents, shiftYear } from "./events";
+import { getItemsWithPayments, listUserEvents, occurrence } from "./events";
 import { getSplitData, payerOf, sharesOf } from "./split";
 import { addMonths, dateInMonth, todayISO, type ForecastMonth } from "./forecast";
 
@@ -133,9 +133,10 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
         // Неоплаченное ещё не ушло с баланса: просроченное — в текущий месяц.
         outflows.push({ date: later(when), amount: toBase(remaining, it.currency), title, movable });
       }
-      if (ev.recurrence === "yearly" && when && !shared) {
-        for (let y = Number(when.slice(0, 4)) + 1; ; y++) {
-          const d = shiftYear(when, y);
+      if (ev.recurrence !== "none" && when && !shared) {
+        // Следующие повторения (каждый месяц / каждый год) — полной суммой.
+        for (let k = 1; ; k++) {
+          const d = occurrence(when, ev.recurrence, k);
           if (d >= horizonEnd) break;
           if (d >= today) outflows.push({ date: d, amount: toBase(Number(it.amount), it.currency), title, movable });
         }

@@ -208,7 +208,7 @@ function eventFields(fd: FormData) {
     endDate: end,
     status,
     priority: pick(str(fd, "priority"), EVENT_PRIORITIES, "want"),
-    recurrence: fd.get("yearly") === "on" ? ("yearly" as const) : ("none" as const),
+    recurrence: pick(str(fd, "recurrence"), ["none", "monthly", "yearly"] as const, fd.get("yearly") === "on" ? "yearly" : "none"),
     visibility: fd.get("private") === "on" ? ("private" as const) : ("calendar" as const),
     currency: currency(fd),
     notes: str(fd, "notes").slice(0, 2000) || null,
@@ -225,6 +225,18 @@ export async function createEvent(fd: FormData) {
     .values({ ...fields, calendarId, createdBy: user.id })
     .returning({ id: events.id });
   await db.insert(eventParticipants).values({ eventId: ev.id, userId: user.id, displayName: user.name || "—", role: "owner" });
+  // Сумма прямо в форме события — первая трата (например, аренда каждый месяц).
+  const amount = parseAmount(fd.get("amount"));
+  if (amount != null && amount > 0) {
+    await db.insert(expenseItems).values({
+      eventId: ev.id,
+      title: fields.title,
+      amount: amount.toFixed(2),
+      currency: fields.currency,
+      isEstimate: fields.recurrence === "none",
+      dueDate: fields.startDate,
+    });
+  }
   revalidatePath("/", "layout");
   redirect(`/events/${ev.id}`);
 }

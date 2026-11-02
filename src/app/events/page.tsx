@@ -4,7 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import { BackLink, btnCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
-import { listEventsWithTotals, shiftYear } from "@/lib/events";
+import { listEventsWithTotals, nextOccurrence } from "@/lib/events";
 import { todayISO } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
@@ -13,18 +13,12 @@ export default async function EventsPage() {
   const user = await requireUser();
   const { t, intl } = await getI18n();
   const today = todayISO();
-  const year = Number(today.slice(0, 4));
 
   const all = (await listEventsWithTotals(user.id)).filter((e) => e.status !== "idea");
-  const withDate = all
-    .map((e) => {
-      if (e.recurrence === "yearly" && e.startDate) {
-        let d = shiftYear(e.startDate, year);
-        if (d < today) d = shiftYear(e.startDate, year + 1);
-        return { ...e, displayDate: d < e.startDate ? e.startDate : d };
-      }
-      return { ...e, displayDate: e.startDate };
-    });
+  const withDate = all.map((e) => ({
+    ...e,
+    displayDate: e.startDate ? nextOccurrence(e.startDate, e.recurrence, today) : e.startDate,
+  }));
   const upcoming = withDate
     .filter((e) => e.status !== "cancelled" && e.status !== "done" && ((e.endDate ?? e.displayDate ?? today) >= today || e.unpaid > 0))
     .sort((a, b) => (a.displayDate ?? "9999").localeCompare(b.displayDate ?? "9999"));

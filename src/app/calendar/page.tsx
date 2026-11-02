@@ -4,7 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import { btnCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
-import { listEventsWithTotals, shiftYear, TYPE_DOT } from "@/lib/events";
+import { listEventsWithTotals, occurrenceInMonth, TYPE_DOT } from "@/lib/events";
 import { addMonths, daysInMonth, monthLabel, todayISO } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
@@ -31,9 +31,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const inMonth: EventSummary[] = [];
   for (const e of all) {
     if (!e.startDate) continue;
-    if (e.recurrence === "yearly") {
-      const d = shiftYear(e.startDate, year);
-      if (d >= e.startDate && d.startsWith(month)) inMonth.push({ ...e, displayDate: d });
+    if (e.recurrence !== "none") {
+      const d = occurrenceInMonth(e.startDate, e.recurrence, month);
+      if (d) inMonth.push({ ...e, displayDate: d });
     } else if (e.startDate <= last && (e.endDate ?? e.startDate) >= first) {
       inMonth.push({ ...e, displayDate: e.startDate < first ? first : e.startDate });
     }
@@ -43,8 +43,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   // Точки по дням.
   const dots = new Map<number, string[]>();
   for (const e of inMonth) {
-    const s = e.recurrence === "yearly" ? e.displayDate! : e.startDate!;
-    const end = e.recurrence === "yearly" ? s : e.endDate ?? s;
+    const s = e.recurrence !== "none" ? e.displayDate! : e.startDate!;
+    const end = e.recurrence !== "none" ? s : e.endDate ?? s;
     for (let d = 1; d <= daysInMonth(month); d++) {
       const iso = `${month}-${String(d).padStart(2, "0")}`;
       if (iso >= s && iso <= end) dots.set(d, [...(dots.get(d) ?? []), TYPE_DOT[e.type]]);

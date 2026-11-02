@@ -29,7 +29,7 @@ export const eventType = pgEnum("event_type", ["trip", "birthday", "health", "pu
 export const eventStatus = pgEnum("event_status", ["idea", "planned", "confirmed", "done", "cancelled"]);
 export const eventPriority = pgEnum("event_priority", ["must", "want", "movable"]);
 export const eventVisibility = pgEnum("event_visibility", ["calendar", "private"]);
-export const recurrence = pgEnum("recurrence", ["none", "yearly"]);
+export const recurrence = pgEnum("recurrence", ["none", "yearly", "monthly"]);
 export const paymentStatus = pgEnum("payment_status", ["unpaid", "partial", "paid"]);
 export const shareType = pgEnum("share_type", ["equal", "percent", "amount"]);
 
