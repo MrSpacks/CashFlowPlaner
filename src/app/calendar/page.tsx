@@ -56,10 +56,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   }
 
   const offset = (new Date(Date.UTC(year, mon - 1, 1)).getUTCDay() + 6) % 7;
+  // Всегда 6 недель (42 клетки) — высота календаря не прыгает между месяцами.
+  const prevMonth = addMonths(month, -1);
+  const prevDays = daysInMonth(prevMonth);
   const cells: (number | null)[] = [
     ...Array.from({ length: offset }, () => null),
     ...Array.from({ length: daysInMonth(month) }, (_, i) => i + 1),
   ];
+  while (cells.length < 42) cells.push(null);
+  // число соседнего месяца для пустой клетки (серым)
+  const ghost = (i: number) => (i < offset ? prevDays - offset + 1 + i : i - offset - daysInMonth(month) + 1);
   const isThisMonth = month === today.slice(0, 7);
   const selDay = dayParam && dayParam.startsWith(month) ? Number(dayParam.slice(8)) : null;
   const dayIso = (d: number) => `${month}-${String(d).padStart(2, "0")}`;
@@ -116,7 +122,14 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                 </span>
               </Link>
             ) : (
-              <div key={i} />
+              <Link
+                key={i}
+                href={`/calendar?m=${addMonths(month, i < offset ? -1 : 1)}`}
+                className="flex aspect-square flex-col items-center justify-center rounded-lg text-slate-300"
+              >
+                {ghost(i)}
+                <span className="mt-0.5 h-1.5" />
+              </Link>
             ),
           )}
         </div>

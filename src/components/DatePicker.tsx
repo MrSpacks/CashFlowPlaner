@@ -82,7 +82,9 @@ export default function DatePicker({
 
   const days = new Date(view.y, view.m + 1, 0).getDate();
   const offset = (new Date(view.y, view.m, 1).getDay() + 6) % 7; // понедельник = 0
-  const cells = [...Array(offset).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
+  // Всегда 6 строк — окно не меняет высоту при листании месяцев.
+  const cells: (number | null)[] = [...Array(offset).fill(null), ...Array.from({ length: days }, (_, i) => i + 1)];
+  while (cells.length < 42) cells.push(null);
   const shift = (n: number) => setView(({ y, m }) => ({ y: m + n < 0 ? y - 1 : m + n > 11 ? y + 1 : y, m: (m + n + 12) % 12 }));
 
   const display = value
@@ -128,7 +130,7 @@ export default function DatePicker({
           </div>
           <div className="grid grid-cols-7 gap-0.5 text-center text-sm">
             {cells.map((d, i) => {
-              if (!d) return <div key={i} />;
+              if (!d) return <div key={i} className="aspect-square" />;
               const v = iso(view.y, view.m, d);
               const selected = v === value;
               const isToday = v === today;
