@@ -2,7 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { balanceSnapshots, fixedExpenses, incomes, incomeSources, profiles } from "@/db/schema";
 import { getItemsWithPayments, listUserEvents, occurrence } from "./events";
-import { getSplitData, payerOf, sharesOf } from "./split";
+import { getSplitData, sharesOf } from "./split";
 import { addMonths, dateInMonth, todayISO, type ForecastMonth } from "./forecast";
 
 /** Курсы относительно базовой валюты (1 base = rate × quote). Раз в сутки, данные ЕЦБ. */
@@ -90,9 +90,8 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
   let opening = snap ? toBase(Number(snap.amount), snap.currency) : 0;
 
   // Движение денег по событиям.
-  // Своё: оплаты, которые делаю я (после даты баланса) + то, что мне ещё предстоит оплатить.
-  // Общие события: моя доля в чужих оплатах — долг (отток), доли других в моих оплатах — возврат (приток).
-  const evById = new Map(evs.map((e) => [e.id, e]));
+  // Своё событие — вся сумма. Общее (несколько участников) — ТОЛЬКО МОЯ ДОЛЯ, кто бы ни платил:
+  // кто кому должен, видно в самом событии, а из моих денег уходит лишь моя часть.
   type Flow = { date: string; amount: number; title: string; movable: boolean };
   const outflows: Flow[] = [];
   const inflows: Flow[] = [];
@@ -100,67 +99,38 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
 
   for (const ev of evs) {
     const evParts = parts.filter((p) => p.eventId === ev.id);
-    // События общего календаря, где я не участник, мои деньги не трогают.
-    if (ev.createdBy !== userId && !evParts.some((p) => p.userId === userId)) continue;
     const me = evParts.find((p) => p.userId === userId);
+    // События общего календаря, где я не участник, мои деньги не трогают.
+    if (ev.createdBy !== userId && !me) continue;
     const shared = evParts.length > 1 && !!me;
     const movable = ev.priority === "movable";
-    const settleDate = later(ev.endDate ?? ev.startDate);
-    let expectIn = 0; // в валюте base
-    let expectOut = 0;
 
     for (const it of items.filter((i) => i.eventId === ev.id)) {
       const title = `${ev.title} — ${it.title}`;
-      const payer = payerOf(it, ev, parts);
-      const iPay = !shared || payer === me?.id;
+      const amount = Number(it.amount);
+      const ratio = shared ? (sharesOf(it, evParts, shares).get(me!.id) ?? 0) / (amount || 1) : 1;
+      if (ratio <= 0) continue;
       const when = it.dueDate ?? ev.startDate;
-
-      if (shared) {
-        const sh = sharesOf(it, evParts, shares);
-        const mine = sh.get(me!.id) ?? 0;
-        if (iPay) expectIn += toBase(Number(it.amount) - mine, it.currency);
-        else expectOut += toBase(mine, it.currency);
-      }
-      if (!iPay) continue;
 
       const itPays = pays.filter((p) => p.expenseItemId === it.id);
       let paidSame = 0;
       for (const p of itPays) {
         if (p.currency === it.currency) paidSame += Number(p.amount);
-        if (p.paidAt > cutoff) outflows.push({ date: p.paidAt, amount: toBase(Number(p.amount), p.currency), title, movable: false });
+        if (p.paidAt > cutoff) outflows.push({ date: p.paidAt, amount: toBase(Number(p.amount) * ratio, p.currency), title, movable: false });
       }
-      const remaining = it.status === "paid" ? 0 : Math.max(Number(it.amount) - paidSame, 0);
+      const remaining = it.status === "paid" ? 0 : Math.max(amount - paidSame, 0);
       if (remaining > 0 && when) {
         // Неоплаченное ещё не ушло с баланса: просроченное — в текущий месяц.
-        outflows.push({ date: later(when), amount: toBase(remaining, it.currency), title, movable });
+        outflows.push({ date: later(when), amount: toBase(remaining * ratio, it.currency), title, movable });
       }
-      if (ev.recurrence !== "none" && when && !shared) {
-        // Следующие повторения (каждый месяц / каждый год) — полной суммой.
+      if (ev.recurrence !== "none" && when) {
+        // Следующие повторения (каждый месяц / каждый год).
         for (let k = 1; ; k++) {
           const d = occurrence(when, ev.recurrence, k);
           if (d >= horizonEnd) break;
-          if (d >= today) outflows.push({ date: d, amount: toBase(Number(it.amount), it.currency), title, movable });
+          if (d >= today) outflows.push({ date: d, amount: toBase(amount * ratio, it.currency), title, movable });
         }
       }
-    }
-
-    if (shared) {
-      // Уже сделанные возвраты уменьшают ожидаемые и (если после даты баланса) сами двигают деньги.
-      for (const st of setts.filter((x) => x.eventId === ev.id)) {
-        const v = toBase(Number(st.amount), st.currency);
-        const date = st.settledAt ?? today;
-        if (st.toParticipantId === me!.id) {
-          expectIn -= v;
-          if (date > cutoff) inflows.push({ date, amount: v, title: ev.title, movable: false });
-        } else if (st.fromParticipantId === me!.id) {
-          expectOut -= v;
-          if (date > cutoff) outflows.push({ date, amount: v, title: ev.title, movable: false });
-        }
-      }
-      // Взаимозачёт внутри события: двигается только разница.
-      const net = expectIn - expectOut;
-      if (net > 0.5) inflows.push({ date: settleDate, amount: net, title: ev.title, movable: false });
-      else if (net < -0.5) outflows.push({ date: settleDate, amount: -net, title: ev.title, movable });
     }
   }
 
