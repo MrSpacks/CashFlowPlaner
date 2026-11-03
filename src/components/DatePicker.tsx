@@ -54,15 +54,28 @@ export default function DatePicker({
   labels,
   required,
   allowClear = true,
+  value: controlled,
+  onChange,
+  min,
 }: {
   name: string;
   defaultValue?: string | null;
   labels: Labels;
   required?: boolean;
   allowClear?: boolean;
+  /** Управляемый режим (для связанных полей «от — до»). */
+  value?: string;
+  onChange?: (v: string) => void;
+  /** Раньше этой даты выбрать нельзя. */
+  min?: string | null;
 }) {
-  const [value, setValue] = useState(defaultValue ?? "");
-  const start = value || todayIso();
+  const [inner, setInner] = useState(defaultValue ?? "");
+  const value = controlled ?? inner;
+  const setValue = (v: string) => {
+    if (controlled === undefined) setInner(v);
+    onChange?.(v);
+  };
+  const start = value || min || todayIso();
   const [view, setView] = useState({ y: Number(start.slice(0, 4)), m: Number(start.slice(5, 7)) - 1 });
   const { open, setOpen, ref } = usePopover();
   const today = todayIso();
@@ -84,7 +97,7 @@ export default function DatePicker({
       <button
         type="button"
         onClick={() => {
-          const s = value || todayIso();
+          const s = value || min || todayIso();
           setView({ y: Number(s.slice(0, 4)), m: Number(s.slice(5, 7)) - 1 });
           setOpen(!open);
         }}
@@ -119,10 +132,14 @@ export default function DatePicker({
               const v = iso(view.y, view.m, d);
               const selected = v === value;
               const isToday = v === today;
+              const disabled = !!min && v < min;
+              const inRange = !!min && !!value && v > min && v < value;
+              const isMin = !!min && v === min;
               return (
                 <button
                   type="button"
                   key={i}
+                  disabled={disabled}
                   onClick={() => {
                     setValue(v);
                     setOpen(false);
@@ -130,9 +147,15 @@ export default function DatePicker({
                   className={`aspect-square rounded-lg ${
                     selected
                       ? "bg-emerald-600 font-semibold text-white"
-                      : isToday
-                        ? "font-semibold text-emerald-700 ring-1 ring-emerald-300"
-                        : "text-slate-700 active:bg-slate-100"
+                      : disabled
+                        ? "cursor-not-allowed text-slate-300"
+                        : isMin
+                          ? "font-semibold text-emerald-700 ring-1 ring-emerald-400"
+                          : inRange
+                            ? "bg-emerald-50 text-emerald-700"
+                            : isToday
+                              ? "font-semibold text-emerald-700 ring-1 ring-emerald-300"
+                              : "text-slate-700 active:bg-slate-100"
                   }`}
                 >
                   {d}
@@ -141,16 +164,20 @@ export default function DatePicker({
             })}
           </div>
           <div className="mt-2 flex justify-between text-sm">
-            <button
-              type="button"
-              onClick={() => {
-                setValue(today);
-                setOpen(false);
-              }}
-              className="rounded-lg px-2 py-1 font-medium text-emerald-700 active:bg-emerald-50"
-            >
-              {labels.today}
-            </button>
+            {!(min && today < min) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setValue(today);
+                  setOpen(false);
+                }}
+                className="rounded-lg px-2 py-1 font-medium text-emerald-700 active:bg-emerald-50"
+              >
+                {labels.today}
+              </button>
+            ) : (
+              <span />
+            )}
             {allowClear && !required && value && (
               <button
                 type="button"
@@ -242,20 +269,40 @@ export function TimePicker({
   name,
   defaultValue,
   labels,
+  value: controlled,
+  onChange,
+  min,
 }: {
   name: string;
   defaultValue?: string | null;
   labels: { placeholder: string; hours: string; minutes: string; clear: string };
+  value?: string;
+  onChange?: (v: string) => void;
+  /** Нельзя выбрать время раньше этого или равное ему («HH:MM»). */
+  min?: string | null;
 }) {
-  const [value, setValue] = useState(defaultValue ?? "");
-  const [hour, setHour] = useState<string | null>(defaultValue ? defaultValue.slice(0, 2) : null);
+  const [inner, setInner] = useState(defaultValue ?? "");
+  const value = controlled ?? inner;
+  const setValue = (v: string) => {
+    if (controlled === undefined) setInner(v);
+    onChange?.(v);
+  };
+  const [hour, setHour] = useState<string | null>(value ? value.slice(0, 2) : null);
+  const minH = min ? min.slice(0, 2) : null;
   const { open, setOpen, ref } = usePopover();
   const pad2 = (n: number) => String(n).padStart(2, "0");
 
   return (
     <div ref={ref} className="relative">
       <input type="hidden" name={name} value={value} />
-      <button type="button" onClick={() => setOpen(!open)} className={fieldCls}>
+      <button
+        type="button"
+        onClick={() => {
+          if (!value && minH) setHour(minH);
+          setOpen(!open);
+        }}
+        className={fieldCls}
+      >
         <span className={value ? "" : "text-slate-400"}>{value || labels.placeholder}</span>
         <ClockIcon />
       </button>
@@ -268,11 +315,21 @@ export function TimePicker({
               <button
                 type="button"
                 key={h}
+                disabled={!!minH && h < minH}
                 onClick={() => {
                   setHour(h);
-                  setValue(`${h}:${value ? value.slice(3) : "00"}`);
+                  // минуты подбираем так, чтобы время было позже min
+                  let m = value ? value.slice(3) : "00";
+                  if (min && `${h}:${m}` <= min) m = h === minH ? String(Math.min(55, (Math.floor(Number(min.slice(3)) / 5) + 1) * 5)).padStart(2, "0") : "00";
+                  if (!(min && `${h}:${m}` <= min)) setValue(`${h}:${m}`);
                 }}
-                className={`rounded-lg py-1.5 ${hour === h ? "bg-emerald-600 font-semibold text-white" : "text-slate-700 active:bg-slate-100"}`}
+                className={`rounded-lg py-1.5 ${
+                  hour === h
+                    ? "bg-emerald-600 font-semibold text-white"
+                    : minH && h < minH
+                      ? "cursor-not-allowed text-slate-300"
+                      : "text-slate-700 active:bg-slate-100"
+                }`}
               >
                 {h}
               </button>
@@ -284,12 +341,19 @@ export function TimePicker({
               <button
                 type="button"
                 key={m}
+                disabled={!!min && `${hour ?? "12"}:${m}` <= min}
                 onClick={() => {
                   setValue(`${hour ?? "12"}:${m}`);
                   if (!hour) setHour("12");
                   setOpen(false);
                 }}
-                className={`rounded-lg py-1.5 ${value.slice(3) === m && value ? "bg-emerald-600 font-semibold text-white" : "text-slate-700 active:bg-slate-100"}`}
+                className={`rounded-lg py-1.5 ${
+                  value.slice(3) === m && value && value.slice(0, 2) === hour
+                    ? "bg-emerald-600 font-semibold text-white"
+                    : min && `${hour ?? "12"}:${m}` <= min
+                      ? "cursor-not-allowed text-slate-300"
+                      : "text-slate-700 active:bg-slate-100"
+                }`}
               >
                 :{m}
               </button>
@@ -308,6 +372,102 @@ export function TimePicker({
               >
                 {labels.clear}
               </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Даты и время события: «до» никогда не раньше «от». */
+export function EventDateTimeFields({
+  start,
+  end,
+  startTime,
+  endTime,
+  labels,
+}: {
+  start?: string | null;
+  end?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  labels: {
+    dates: Labels;
+    start: string;
+    end: string;
+    withTime: string;
+    from: string;
+    to: string;
+    pickTime: string;
+    hours: string;
+    minutes: string;
+  };
+}) {
+  const [s, setS] = useState(start ?? "");
+  const [e, setE] = useState(end && (!start || end >= start) ? end : "");
+  const [on, setOn] = useState(!!startTime);
+  const [st, setSt] = useState(startTime ?? "");
+  const [et, setEt] = useState(endTime ?? "");
+  const lbl = "mb-1 block text-xs font-medium text-slate-500";
+  const sameDay = !e || e === s;
+  const timeLabels = { placeholder: labels.pickTime, hours: labels.hours, minutes: labels.minutes, clear: labels.dates.clear };
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={lbl}>{labels.start}</label>
+          <DatePicker
+            name="start"
+            labels={labels.dates}
+            value={s}
+            onChange={(v) => {
+              setS(v);
+              if (e && v && e < v) setE(""); // конец стал раньше начала — сбрасываем
+              if (!v) setOn(false);
+            }}
+          />
+        </div>
+        <div>
+          <label className={lbl}>{labels.end}</label>
+          <DatePicker
+            name="end"
+            labels={labels.dates}
+            value={e}
+            min={s || null}
+            onChange={(v) => {
+              setE(v);
+              if ((!v || v === s) && et && st && et <= st) setEt("");
+            }}
+          />
+        </div>
+      </div>
+
+      {s && (
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="withTime" checked={on} onChange={(ev) => setOn(ev.target.checked)} className="h-5 w-5 accent-emerald-600" />
+            🕒 {labels.withTime}
+          </label>
+          {on && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className={lbl}>{labels.from}</label>
+                <TimePicker
+                  name="startTime"
+                  labels={timeLabels}
+                  value={st}
+                  onChange={(v) => {
+                    setSt(v);
+                    if (sameDay && et && v && et <= v) setEt("");
+                  }}
+                />
+              </div>
+              <div>
+                <label className={lbl}>{labels.to}</label>
+                <TimePicker name="endTime" labels={timeLabels} value={et} onChange={setEt} min={sameDay && st ? st : null} />
+              </div>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { createEvent, updateEvent } from "@/app/actions";
 import { CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
-import DatePicker, { TimeFields } from "@/components/DatePicker";
+import { EventDateTimeFields } from "@/components/DatePicker";
 import type { Dict } from "@/i18n/dictionaries";
 import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, TYPE_ICON, type EventRow } from "@/lib/events";
 
@@ -48,28 +48,21 @@ export default function EventForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className={labelCls}>{t.start}</label>
-          <DatePicker name="start" defaultValue={event?.startDate ?? defaults?.start ?? ""} labels={dates} />
-        </div>
-        <div>
-          <label className={labelCls}>{t.end}</label>
-          <DatePicker name="end" defaultValue={event?.endDate ?? ""} labels={dates} />
-        </div>
-      </div>
-
-      <TimeFields
-        start={event?.startTime}
-        end={event?.endTime}
+      <EventDateTimeFields
+        start={event?.startDate ?? defaults?.start ?? ""}
+        end={event?.endDate}
+        startTime={event?.startTime}
+        endTime={event?.endTime}
         labels={{
+          dates,
+          start: t.start,
+          end: t.end,
           withTime: t.withTime,
           from: t.timeFrom,
           to: t.timeTo,
-          placeholder: t.pickTime,
+          pickTime: t.pickTime,
           hours: t.hours,
           minutes: t.minutes,
-          clear: dates.clear,
         }}
       />
 
