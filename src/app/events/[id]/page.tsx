@@ -19,7 +19,7 @@ import { BackLink, Card, CurrencySelect, btnCls, btnGhostCls, inputCls, labelCls
 import { dateLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
-import { getEventAccess, getItemsWithPayments, TYPE_ICON } from "@/lib/events";
+import { getEventAccess, getItemsWithPayments, timeText, TYPE_ICON } from "@/lib/events";
 import { getProfile, getRates } from "@/lib/finance";
 import { getRelations, getUsersInfo } from "@/lib/people";
 import Avatar from "@/components/Avatar";
@@ -89,6 +89,8 @@ export default async function EventPage({
       ? `${formatDate(ev.startDate, intl)} – ${formatDate(ev.endDate, intl)}`
       : formatDate(ev.startDate, intl)
     : t.ev.noDate;
+  const tt = timeText(ev);
+  const dateTimeText = tt ? `${dateText} · 🕒 ${tt}` : dateText;
 
   return (
     <>
@@ -103,7 +105,7 @@ export default async function EventPage({
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900">{ev.title}</h1>
         <div className="mt-1 flex items-center justify-between gap-2">
-          <p className="text-sm text-slate-500">{dateText}</p>
+          <p className="text-sm text-slate-500">{dateTimeText}</p>
           <Link href={`/chats/event/${ev.id}`} className="shrink-0 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700 active:bg-emerald-100">
             💬 {t.ch.eventChat}
           </Link>

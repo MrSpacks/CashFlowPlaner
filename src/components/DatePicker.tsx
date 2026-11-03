@@ -229,3 +229,124 @@ export function DayOfMonthPicker({
     </div>
   );
 }
+
+const ClockIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.8}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+
+/** Выбор времени 24 ч: сетка часов и минут с шагом 5. Значение «HH:MM» в скрытом поле. */
+export function TimePicker({
+  name,
+  defaultValue,
+  labels,
+}: {
+  name: string;
+  defaultValue?: string | null;
+  labels: { placeholder: string; hours: string; minutes: string; clear: string };
+}) {
+  const [value, setValue] = useState(defaultValue ?? "");
+  const [hour, setHour] = useState<string | null>(defaultValue ? defaultValue.slice(0, 2) : null);
+  const { open, setOpen, ref } = usePopover();
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+
+  return (
+    <div ref={ref} className="relative">
+      <input type="hidden" name={name} value={value} />
+      <button type="button" onClick={() => setOpen(!open)} className={fieldCls}>
+        <span className={value ? "" : "text-slate-400"}>{value || labels.placeholder}</span>
+        <ClockIcon />
+      </button>
+      {open && <Backdrop onClose={() => setOpen(false)} />}
+      {open && (
+        <div className={popCls}>
+          <p className="mb-1 text-xs font-medium text-slate-500">{labels.hours}</p>
+          <div className="grid grid-cols-6 gap-1 text-center text-sm">
+            {Array.from({ length: 24 }, (_, h) => pad2(h)).map((h) => (
+              <button
+                type="button"
+                key={h}
+                onClick={() => {
+                  setHour(h);
+                  setValue(`${h}:${value ? value.slice(3) : "00"}`);
+                }}
+                className={`rounded-lg py-1.5 ${hour === h ? "bg-emerald-600 font-semibold text-white" : "text-slate-700 active:bg-slate-100"}`}
+              >
+                {h}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 mb-1 text-xs font-medium text-slate-500">{labels.minutes}</p>
+          <div className="grid grid-cols-6 gap-1 text-center text-sm">
+            {Array.from({ length: 12 }, (_, i) => pad2(i * 5)).map((m) => (
+              <button
+                type="button"
+                key={m}
+                onClick={() => {
+                  setValue(`${hour ?? "12"}:${m}`);
+                  if (!hour) setHour("12");
+                  setOpen(false);
+                }}
+                className={`rounded-lg py-1.5 ${value.slice(3) === m && value ? "bg-emerald-600 font-semibold text-white" : "text-slate-700 active:bg-slate-100"}`}
+              >
+                :{m}
+              </button>
+            ))}
+          </div>
+          {value && (
+            <div className="mt-2 text-right">
+              <button
+                type="button"
+                onClick={() => {
+                  setValue("");
+                  setHour(null);
+                  setOpen(false);
+                }}
+                className="rounded-lg px-2 py-1 text-sm text-slate-500 active:bg-slate-100"
+              >
+                {labels.clear}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Галочка «Указать время» и поля «с» / «до». */
+export function TimeFields({
+  start,
+  end,
+  labels,
+}: {
+  start?: string | null;
+  end?: string | null;
+  labels: { withTime: string; from: string; to: string; placeholder: string; hours: string; minutes: string; clear: string };
+}) {
+  const [on, setOn] = useState(!!start);
+  const lbl = "mb-1 block text-xs font-medium text-slate-500";
+  const pickerLabels = { placeholder: labels.placeholder, hours: labels.hours, minutes: labels.minutes, clear: labels.clear };
+  return (
+    <div className="space-y-2">
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="withTime" checked={on} onChange={(e) => setOn(e.target.checked)} className="h-5 w-5 accent-emerald-600" />
+        🕒 {labels.withTime}
+      </label>
+      {on && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className={lbl}>{labels.from}</label>
+            <TimePicker name="startTime" defaultValue={start} labels={pickerLabels} />
+          </div>
+          <div>
+            <label className={lbl}>{labels.to}</label>
+            <TimePicker name="endTime" defaultValue={end} labels={pickerLabels} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

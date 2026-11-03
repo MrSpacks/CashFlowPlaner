@@ -207,11 +207,19 @@ function eventFields(fd: FormData) {
   let end = isoOrNull(fd, "end");
   if (start && end && end < start) end = start;
   const status = pick(str(fd, "status"), EVENT_STATUSES, start ? "planned" : "idea");
+  const HM = /^([01]\d|2[0-3]):[0-5]\d$/;
+  const withTime = fd.get("withTime") === "on" && !!start;
+  const startTime = withTime && HM.test(str(fd, "startTime")) ? str(fd, "startTime") : null;
+  let endTime = withTime && startTime && HM.test(str(fd, "endTime")) ? str(fd, "endTime") : null;
+  // Тот же день и конец раньше начала — конец не сохраняем.
+  if (endTime && startTime && (!end || end === start) && endTime <= startTime) endTime = null;
   return {
     title: str(fd, "title").slice(0, 200),
     type: pick(str(fd, "type"), EVENT_TYPES, "other"),
     startDate: start,
     endDate: end,
+    startTime,
+    endTime,
     status,
     priority: pick(str(fd, "priority"), EVENT_PRIORITIES, "want"),
     recurrence: pick(str(fd, "recurrence"), ["none", "monthly", "yearly"] as const, fd.get("yearly") === "on" ? "yearly" : "none"),

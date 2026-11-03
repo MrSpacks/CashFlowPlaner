@@ -1,4 +1,4 @@
-import { getItemsWithPayments, listUserEvents, nextOccurrence } from "./events";
+import { getItemsWithPayments, listUserEvents, nextOccurrence, timeText } from "./events";
 import { getSplitData, payerOf } from "./split";
 
 export interface Reminder {
@@ -66,7 +66,8 @@ export async function getReminders(userId: string, today: string, payDays = 7, e
 
     const start = ev.startDate ? nextOccurrence(ev.startDate, ev.recurrence, today) : null;
     if (start && start >= today && start <= evLimit) {
-      res.push({ kind: "event", title: ev.title, date: start, days: diffDays(today, start), eventId: ev.id });
+      const tt = timeText(ev);
+      res.push({ kind: "event", title: tt ? `${ev.title} (${tt})` : ev.title, date: start, days: diffDays(today, start), eventId: ev.id });
     }
   }
 

@@ -88,6 +88,8 @@ export const events = pgTable(
     title: text("title").notNull(),
     startDate: date("start_date"),
     endDate: date("end_date"),
+    startTime: text("start_time"), // "HH:MM", пусто — весь день
+    endTime: text("end_time"),
     status: eventStatus("status").default("planned").notNull(),
     priority: eventPriority("priority").default("want").notNull(),
     visibility: eventVisibility("visibility").default("calendar").notNull(),

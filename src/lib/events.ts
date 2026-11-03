@@ -209,3 +209,16 @@ export function occurrenceInMonth(start: string, rec: string, month: string): st
   }
   return null;
 }
+
+/** «18:00–20:00», «18:00» или пусто (весь день). */
+export function timeText(ev: { startTime?: string | null; endTime?: string | null }) {
+  if (!ev.startTime) return "";
+  return ev.endTime ? `${ev.startTime}–${ev.endTime}` : ev.startTime;
+}
+
+/** Сортировка: по дате, внутри дня — сначала «весь день», затем по времени. */
+export function byDateTime(a: { displayDate?: string | null; startDate: string | null; startTime: string | null }, b: typeof a) {
+  const da = a.displayDate ?? a.startDate ?? "9999";
+  const db_ = b.displayDate ?? b.startDate ?? "9999";
+  return da.localeCompare(db_) || (a.startTime ?? "").localeCompare(b.startTime ?? "");
+}

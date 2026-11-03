@@ -4,7 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import { BackLink, btnCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
-import { listEventsWithTotals, nextOccurrence } from "@/lib/events";
+import { byDateTime, listEventsWithTotals, nextOccurrence } from "@/lib/events";
 import { todayISO } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export default async function EventsPage() {
   }));
   const upcoming = withDate
     .filter((e) => e.status !== "cancelled" && e.status !== "done" && ((e.endDate ?? e.displayDate ?? today) >= today || e.unpaid > 0))
-    .sort((a, b) => (a.displayDate ?? "9999").localeCompare(b.displayDate ?? "9999"));
+    .sort(byDateTime);
   const past = withDate.filter((e) => !upcoming.includes(e));
 
   return (

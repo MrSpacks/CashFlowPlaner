@@ -4,7 +4,7 @@ import PageHeader from "@/components/PageHeader";
 import { btnCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
-import { listEventsWithTotals, occurrenceInMonth, TYPE_DOT } from "@/lib/events";
+import { byDateTime, listEventsWithTotals, occurrenceInMonth, TYPE_DOT } from "@/lib/events";
 import { addMonths, daysInMonth, monthLabel, todayISO } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +38,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       inMonth.push({ ...e, displayDate: e.startDate < first ? first : e.startDate });
     }
   }
-  inMonth.sort((a, b) => (a.displayDate ?? "").localeCompare(b.displayDate ?? ""));
+  inMonth.sort(byDateTime);
 
   // Точки по дням.
   const dots = new Map<number, string[]>();

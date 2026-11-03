@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Dict } from "@/i18n/dictionaries";
-import { TYPE_ICON, type EventRow } from "@/lib/events";
+import { timeText, TYPE_ICON, type EventRow } from "@/lib/events";
 import { formatDate, formatMoney } from "@/lib/forecast";
 
 export type EventSummary = EventRow & { total: number; unpaid: number; people?: number; displayDate?: string | null };
@@ -19,7 +19,8 @@ export default function EventList({ events, t, intl }: { events: EventSummary[];
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{e.title}</p>
                 <p className="truncate text-xs text-slate-500">
-                  {date ? formatDate(date, intl) : t.noDate} · {t.statuses[e.status]}
+                  {date ? formatDate(date, intl) : t.noDate}
+                  {e.startTime && ` · 🕒 ${timeText(e)}`} · {t.statuses[e.status]}
                   {(e.people ?? 0) > 1 && ` · 👥 ${e.people}`}
                   {e.recurrence !== "none" && " · ↻"}
                 </p>
