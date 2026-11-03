@@ -3,7 +3,14 @@ import type { Dict } from "@/i18n/dictionaries";
 import { timeText, TYPE_ICON, type EventRow } from "@/lib/events";
 import { formatDate, formatMoney } from "@/lib/forecast";
 
-export type EventSummary = EventRow & { total: number; unpaid: number; people?: number; displayDate?: string | null };
+export type EventSummary = EventRow & {
+  total: number;
+  unpaid: number;
+  fullTotal?: number;
+  shared?: boolean;
+  people?: number;
+  displayDate?: string | null;
+};
 
 export default function EventList({ events, t, intl }: { events: EventSummary[]; t: Dict["ev"]; intl: string }) {
   return (
@@ -28,7 +35,12 @@ export default function EventList({ events, t, intl }: { events: EventSummary[];
               {e.total > 0 && (
                 <div className="shrink-0 text-right text-sm">
                   <p className="font-medium">{formatMoney(e.total, e.currency, intl)}</p>
-                  {e.unpaid > 0 && <p className="text-xs text-rose-600">−{formatMoney(e.unpaid, e.currency, intl)}</p>}
+                  {e.shared && e.fullTotal ? (
+                    <p className="text-[11px] text-slate-400">
+                      {t.ofTotal} {formatMoney(e.fullTotal, e.currency, intl)}
+                    </p>
+                  ) : null}
+                  {e.unpaid > 0.5 && <p className="text-xs text-rose-600">−{formatMoney(e.unpaid, e.currency, intl)}</p>}
                 </div>
               )}
             </Link>

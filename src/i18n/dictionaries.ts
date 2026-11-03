@@ -158,6 +158,7 @@ const ru = {
     planIt: "Запланировать",
     ideaHint: "Это пока идея — она не попадает в календарь и прогноз. Запланируйте, когда решите ехать.",
     allEvents: "Все события",
+    ofTotal: "из",
   },
   pt: {
     title: "Участники",
@@ -446,6 +447,7 @@ const cs: Dict = {
     planIt: "Naplánovat",
     ideaHint: "Zatím je to nápad — nepočítá se do kalendáře ani přehledu. Naplánujte, až se rozhodnete.",
     allEvents: "Všechny události",
+    ofTotal: "z",
   },
   pt: {
     title: "Účastníci",
@@ -732,6 +734,7 @@ const en: Dict = {
     planIt: "Plan it",
     ideaHint: "This is still an idea — it isn't in the calendar or forecast. Plan it once you decide.",
     allEvents: "All events",
+    ofTotal: "of",
   },
   pt: {
     title: "Participants",

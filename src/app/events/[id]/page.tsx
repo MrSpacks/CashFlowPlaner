@@ -316,10 +316,10 @@ export default async function EventPage({
                 </ul>
               )}
 
-              <table className="w-full text-xs text-slate-500">
+              <table className="w-full table-fixed text-xs text-slate-500">
                 <thead>
                   <tr>
-                    <th className="py-1 text-left font-medium" />
+                    <th className="w-[42%] py-1 text-left font-medium" />
                     <th className="py-1 text-right font-medium">{t.pt.paidSoFar}</th>
                     <th className="py-1 text-right font-medium">{t.pt.shareOfBudget}</th>
                   </tr>
@@ -327,7 +327,7 @@ export default async function EventPage({
                 <tbody>
                   {balances.map((b) => (
                     <tr key={b.participantId} className="border-t border-slate-100">
-                      <td className="max-w-0 truncate py-1.5 text-slate-700">{nameOf(b.participantId)}</td>
+                      <td className="truncate py-1.5 pr-2 text-sm text-slate-700">{nameOf(b.participantId)}</td>
                       <td className="py-1.5 text-right">{money(b.paid)}</td>
                       <td className="py-1.5 text-right">{money(b.shareTotal)}</td>
                     </tr>

@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
 import { addMonths, dateInMonth } from "./forecast";
+import { getSplitData, sharesOf } from "./split";
 import { calendarMembers, calendars, eventParticipants, events, expenseItems, expenseShares, payments, settlements } from "@/db/schema";
 
 export type EventRow = typeof events.$inferSelect;
@@ -153,28 +154,32 @@ export function shiftYear(iso: string, year: number) {
   return `${year}-${md}`;
 }
 
-/** События пользователя с суммами (в валюте события, грубо — без пересчёта чужих валют). */
+/**
+ * События пользователя с суммами в валюте события.
+ * В общих событиях — ВАША доля (total/unpaid), полная сумма — в fullTotal.
+ */
 export async function listEventsWithTotals(userId: string) {
   const evs = await listUserEvents(userId);
-  const { items, pays } = await getItemsWithPayments(evs.map((e) => e.id));
-  const partRows = evs.length
-    ? await db
-        .select({ eventId: eventParticipants.eventId })
-        .from(eventParticipants)
-        .where(inArray(eventParticipants.eventId, evs.map((e) => e.id)))
-    : [];
+  const ids = evs.map((e) => e.id);
+  const [{ items, pays }, { parts, shares }] = await Promise.all([getItemsWithPayments(ids), getSplitData(ids)]);
   return evs.map((e) => {
+    const evParts = parts.filter((p) => p.eventId === e.id);
+    const me = evParts.find((p) => p.userId === userId);
+    const shared = evParts.length > 1 && !!me;
     let total = 0;
     let unpaid = 0;
+    let fullTotal = 0;
     for (const it of items.filter((i) => i.eventId === e.id && i.currency === e.currency)) {
-      total += Number(it.amount);
+      const amount = Number(it.amount);
+      const ratio = shared ? (sharesOf(it, evParts, shares).get(me!.id) ?? 0) / (amount || 1) : 1;
+      fullTotal += amount;
+      total += amount * ratio;
       if (it.status !== "paid") {
         const p = pays.filter((x) => x.expenseItemId === it.id && x.currency === it.currency).reduce((a, x) => a + Number(x.amount), 0);
-        unpaid += Math.max(Number(it.amount) - p, 0);
+        unpaid += Math.max(amount - p, 0) * ratio;
       }
     }
-    const people = partRows.filter((r) => r.eventId === e.id).length;
-    return { ...e, total, unpaid, people };
+    return { ...e, total, unpaid, fullTotal, shared, people: evParts.length };
   });
 }
 
