@@ -9,12 +9,14 @@ import {
   deleteExpenseItem,
   deleteSettlement,
   removeParticipant,
+  setEventStatus,
   toggleExpensePaid,
 } from "@/app/actions";
 import DatePicker from "@/components/DatePicker";
 import EventForm from "@/components/EventForm";
 import QrCode from "@/components/QrCode";
 import ShareLink from "@/components/ShareLink";
+import SplitEditor from "@/components/SplitEditor";
 import { BackLink, Card, CurrencySelect, btnCls, btnGhostCls, inputCls, labelCls } from "@/components/ui";
 import { dateLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
@@ -24,7 +26,7 @@ import { getProfile, getRates } from "@/lib/finance";
 import { getRelations, getUsersInfo } from "@/lib/people";
 import Avatar from "@/components/Avatar";
 import { formatDate, formatMoney, todayISO } from "@/lib/forecast";
-import { ensureCreatorParticipant, eventBalances, getSplitData, payerOf, transfers } from "@/lib/split";
+import { ensureCreatorParticipant, eventBalances, getSplitData, payerOf, sharesOf, transfers } from "@/lib/split";
 
 export const dynamic = "force-dynamic";
 
@@ -128,6 +130,14 @@ export default async function EventPage({
           </a>
         )}
         {ev.notes && <p className="mt-2 whitespace-pre-line text-sm text-slate-600">{ev.notes}</p>}
+        {ev.status === "idea" && canEdit && (
+          <form action={setEventStatus} className="mt-3 rounded-2xl bg-amber-50 p-3 ring-1 ring-amber-200">
+            <input type="hidden" name="id" value={ev.id} />
+            <input type="hidden" name="status" value="planned" />
+            <p className="mb-2 text-xs text-amber-800">💡 {t.ev.ideaHint}</p>
+            <button className="w-full rounded-xl bg-emerald-600 px-3 py-2 text-sm font-semibold text-white">📅 {t.ev.planIt}</button>
+          </form>
+        )}
       </header>
 
       <div className="space-y-4 px-4">
@@ -159,10 +169,16 @@ export default async function EventPage({
                 const due = it.dueDate ?? ev.startDate;
                 const overdue = !isPaid && due && due < today;
                 const only = shares.filter((s) => s.expenseItemId === it.id);
+                const custom = only.some((s) => s.shareType === "amount");
+                const split = custom
+                  ? [...sharesOf(it, parts.filter((p) => p.eventId === ev.id), shares)]
+                      .map(([pid, v]) => `${nameOf(pid)} ${money(v, it.currency)}`)
+                      .join(", ")
+                  : null;
                 const sub = [
                   isPaid ? t.ev.paid : due ? `${formatDate(due, intl)}${overdue ? ` · ${t.ev.overdue}` : ""}` : t.ev.noDate,
                   multi ? t.pt.paidBy(nameOf(payerOf(it, ev, parts))) : null,
-                  multi && only.length ? t.pt.onlyFor(only.map((s) => nameOf(s.participantId)).join(", ")) : null,
+                  multi && custom ? split : multi && only.length ? t.pt.onlyFor(only.map((s) => nameOf(s.participantId)).join(", ")) : null,
                 ].filter(Boolean);
                 return (
                   <li key={it.id} className="flex items-center gap-3 px-3 py-2.5">
@@ -248,19 +264,17 @@ export default async function EventPage({
                     ))}
                   </select>
                 </div>
-                <fieldset>
-                  <legend className={labelCls}>{t.pt.splitBetween}</legend>
-                  <div className="flex flex-wrap gap-2">
-                    {parts.map((p) => (
-                      <label key={p.id} className="cursor-pointer">
-                        <input type="checkbox" name="split" value={p.id} defaultChecked className="peer sr-only" />
-                        <span className="inline-block rounded-full px-3 py-1 text-sm ring-1 ring-slate-300 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 peer-checked:ring-emerald-400">
-                          {nameOf(p.id)}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
+                <SplitEditor
+                  parts={parts.map((p) => ({ id: p.id, name: nameOf(p.id) }))}
+                  t={{
+                  splitBetween: t.pt.splitBetween,
+                  equal: t.pt.equal,
+                  custom: t.pt.custom,
+                  rest: t.pt.rest,
+                  over: t.pt.over("{x}"),
+                  left: t.pt.left("{x}"),
+                }}
+                />
               </>
             )}
             <label className="flex items-center gap-2 text-sm">

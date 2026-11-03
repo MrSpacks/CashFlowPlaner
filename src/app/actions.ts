@@ -295,6 +295,28 @@ async function itemForUser(itemId: string, userId: string) {
   return (await getEditableEvent(it.eventId, userId)) ? it : null;
 }
 
+
+/** Доли траты из формы: поровну (на всех — без записей) или свои суммы (пустые — остаток поровну). */
+async function saveShares(fd: FormData, itemId: string, parts: { id: string }[]) {
+  await db.delete(expenseShares).where(eq(expenseShares.expenseItemId, itemId));
+  if (parts.length < 2) return;
+  const chosen = fd.getAll("split").map(String).filter((id) => parts.some((p) => p.id === id));
+  if (chosen.length === 0) return;
+  if (str(fd, "splitMode") === "custom") {
+    const rows = chosen.map((participantId) => {
+      const v = parseAmount(fd.get(`share_${participantId}`));
+      return v != null && v >= 0
+        ? { expenseItemId: itemId, participantId, shareType: "amount" as const, value: v.toFixed(2) }
+        : { expenseItemId: itemId, participantId, shareType: "equal" as const, value: null };
+    });
+    await db.insert(expenseShares).values(rows);
+    return;
+  }
+  if (chosen.length < parts.length) {
+    await db.insert(expenseShares).values(chosen.map((participantId) => ({ expenseItemId: itemId, participantId, shareType: "equal" as const })));
+  }
+}
+
 export async function addExpenseItem(fd: FormData) {
   const user = await requireUser();
   const ev = await getEditableEvent(str(fd, "eventId"), user.id);
@@ -303,7 +325,6 @@ export async function addExpenseItem(fd: FormData) {
   if (!ev || amount == null || !title) return;
   const parts = await db.select().from(eventParticipants).where(eq(eventParticipants.eventId, ev.id));
   const payer = parts.find((p) => p.id === str(fd, "payer"));
-  const chosen = fd.getAll("split").map(String).filter((id) => parts.some((p) => p.id === id));
 
   const [item] = await db
     .insert(expenseItems)
@@ -318,11 +339,8 @@ export async function addExpenseItem(fd: FormData) {
     })
     .returning({ id: expenseItems.id });
 
-  // Делим не на всех — сохраняем, на кого именно (поровну). На всех — без записей,
-  // тогда трата делится и на тех, кто присоединится позже.
-  if (chosen.length > 0 && chosen.length < parts.length) {
-    await db.insert(expenseShares).values(chosen.map((participantId) => ({ expenseItemId: item.id, participantId, shareType: "equal" as const })));
-  }
+  // Поровну на всех — без записей (тогда делится и на тех, кто присоединится позже).
+  await saveShares(fd, item.id, parts);
   revalidatePath("/", "layout");
 }
 
@@ -335,7 +353,6 @@ export async function updateExpenseItem(fd: FormData) {
   if (!it || amount == null || !title) return;
   const parts = await db.select().from(eventParticipants).where(eq(eventParticipants.eventId, it.eventId));
   const payer = parts.find((p) => p.id === str(fd, "payer"));
-  const chosen = fd.getAll("split").map(String).filter((id) => parts.some((p) => p.id === id));
 
   await db
     .update(expenseItems)
@@ -349,12 +366,7 @@ export async function updateExpenseItem(fd: FormData) {
     })
     .where(eq(expenseItems.id, it.id));
 
-  if (parts.length > 1) {
-    await db.delete(expenseShares).where(eq(expenseShares.expenseItemId, it.id));
-    if (chosen.length > 0 && chosen.length < parts.length) {
-      await db.insert(expenseShares).values(chosen.map((participantId) => ({ expenseItemId: it.id, participantId, shareType: "equal" as const })));
-    }
-  }
+  if (parts.length > 1) await saveShares(fd, it.id, parts);
   revalidatePath("/", "layout");
   redirect(`/events/${it.eventId}`);
 }

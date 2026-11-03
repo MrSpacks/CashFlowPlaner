@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { deleteExpenseItem, updateExpenseItem } from "@/app/actions";
 import DatePicker from "@/components/DatePicker";
 import PageHeader from "@/components/PageHeader";
+import SplitEditor from "@/components/SplitEditor";
 import { BackLink, Card, CurrencySelect, btnCls, btnGhostCls, inputCls, labelCls } from "@/components/ui";
 import { db } from "@/db";
 import { expenseItems } from "@/db/schema";
@@ -74,19 +75,25 @@ export default async function EditExpensePage({ params }: { params: Promise<{ id
                     ))}
                   </select>
                 </div>
-                <fieldset>
-                  <legend className={labelCls}>{t.pt.splitBetween}</legend>
-                  <div className="flex flex-wrap gap-2">
-                    {parts.map((p) => (
-                      <label key={p.id} className="cursor-pointer">
-                        <input type="checkbox" name="split" value={p.id} defaultChecked={inSplit(p.id)} className="peer sr-only" />
-                        <span className="inline-block rounded-full px-3 py-1 text-sm ring-1 ring-slate-300 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 peer-checked:ring-emerald-400">
-                          {nameOf(p.id)}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
+                <SplitEditor
+                  parts={parts.map((p) => ({ id: p.id, name: nameOf(p.id) }))}
+                  initialAmount={String(Number(it.amount))}
+                  initial={{
+                    mode: itemShares.some((x) => x.shareType === "amount") ? "custom" : "equal",
+                    chosen: parts.filter((p) => inSplit(p.id)).map((p) => p.id),
+                    amounts: Object.fromEntries(
+                      itemShares.filter((x) => x.shareType === "amount").map((x) => [x.participantId, String(Number(x.value ?? 0))]),
+                    ),
+                  }}
+                  t={{
+                  splitBetween: t.pt.splitBetween,
+                  equal: t.pt.equal,
+                  custom: t.pt.custom,
+                  rest: t.pt.rest,
+                  over: t.pt.over("{x}"),
+                  left: t.pt.left("{x}"),
+                }}
+                />
               </>
             )}
             {it.status !== "paid" && (
