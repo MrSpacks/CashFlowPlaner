@@ -11,7 +11,7 @@ export function isLocale(v: unknown): v is Locale {
 const ru = {
   months: ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"],
   weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
-  nav: { forecast: "Прогноз", calendar: "Календарь", add: "Добавить", ideas: "Идеи", more: "Ещё", chats: "Чаты", people: "Люди" },
+  nav: { forecast: "Прогноз", calendar: "Календарь", add: "Добавить", ideas: "Идеи", more: "Ещё", chats: "Чаты", people: "Люди", notifications: "Уведомления" },
   common: { save: "Сохранить", add: "Добавить", delete: "Удалить", back: "Назад", currency: "Валюта", amount: "Сумма", soon: "скоро", today: "Сегодня", clear: "Очистить", pickDate: "Выберите дату", pickDay: "Выберите день", dayFormat: "{d}-го числа" },
   forecast: {
     title: "Прогноз",
@@ -292,6 +292,9 @@ const ru = {
     test: "Отправить тестовое",
     pushTest: "Уведомления работают 👍",
     pushSummary: (n: number) => `Напоминаний: ${n}`,
+    centerEmpty: "Уведомлений пока нет. Здесь будут напоминания об оплатах, запросы в друзья и приглашения.",
+    markAll: "Отметить все прочитанными",
+    clearAll: "Очистить",
   },
 };
 
@@ -300,7 +303,7 @@ export type Dict = typeof ru;
 const cs: Dict = {
   months: ["Leden", "Únor", "Březen", "Duben", "Květen", "Červen", "Červenec", "Srpen", "Září", "Říjen", "Listopad", "Prosinec"],
   weekdays: ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"],
-  nav: { forecast: "Přehled", calendar: "Kalendář", add: "Přidat", ideas: "Nápady", more: "Další", chats: "Chaty", people: "Lidé" },
+  nav: { forecast: "Přehled", calendar: "Kalendář", add: "Přidat", ideas: "Nápady", more: "Další", chats: "Chaty", people: "Lidé", notifications: "Oznámení" },
   common: { save: "Uložit", add: "Přidat", delete: "Smazat", back: "Zpět", currency: "Měna", amount: "Částka", soon: "brzy", today: "Dnes", clear: "Vymazat", pickDate: "Vyberte datum", pickDay: "Vyberte den", dayFormat: "{d}. den v měsíci" },
   forecast: {
     title: "Přehled",
@@ -581,13 +584,16 @@ const cs: Dict = {
     test: "Poslat testovací",
     pushTest: "Oznámení fungují 👍",
     pushSummary: (n: number) => `Připomínek: ${n}`,
+    centerEmpty: "Zatím žádná oznámení. Budou tu připomínky plateb, žádosti o přátelství a pozvánky.",
+    markAll: "Označit vše jako přečtené",
+    clearAll: "Vymazat",
   },
 };
 
 const en: Dict = {
   months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   weekdays: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"],
-  nav: { forecast: "Forecast", calendar: "Calendar", add: "Add", ideas: "Ideas", more: "More", chats: "Chats", people: "People" },
+  nav: { forecast: "Forecast", calendar: "Calendar", add: "Add", ideas: "Ideas", more: "More", chats: "Chats", people: "People", notifications: "Notifications" },
   common: { save: "Save", add: "Add", delete: "Delete", back: "Back", currency: "Currency", amount: "Amount", soon: "soon", today: "Today", clear: "Clear", pickDate: "Pick a date", pickDay: "Pick a day", dayFormat: "on the {d}" },
   forecast: {
     title: "Forecast",
@@ -868,6 +874,9 @@ const en: Dict = {
     test: "Send a test",
     pushTest: "Notifications work 👍",
     pushSummary: (n: number) => `Reminders: ${n}`,
+    centerEmpty: "No notifications yet. Payment reminders, friend requests and invitations will appear here.",
+    markAll: "Mark all as read",
+    clearAll: "Clear",
   },
 };
 

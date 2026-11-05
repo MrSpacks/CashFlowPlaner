@@ -3,6 +3,9 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import RegisterSW from "@/components/RegisterSW";
 import { getI18n, getTheme } from "@/i18n/server";
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { notifications, profiles } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { unreadTotal } from "@/lib/chat";
 import { getProfile } from "@/lib/finance";
@@ -42,16 +45,24 @@ const SYSTEM_THEME_SCRIPT = `(function(){var m=window.matchMedia('(prefers-color
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const [{ locale, t }, theme, session] = await Promise.all([getI18n(), getTheme(), getSession()]);
   // Значки непрочитанного и аватарка для меню (без входа — пусто).
-  let badges = { chats: 0, people: 0 };
+  let badges = { chats: 0, people: 0, notifications: 0 };
   let me: { id: string; name: string; avatar: string | null } | null = null;
   if (session) {
     try {
-      const [chats, people, profile] = await Promise.all([
+      const [chats, people, profile, notif] = await Promise.all([
         unreadTotal(session.user.id),
         countIncomingRequests(session.user.id),
         getProfile(session.user.id),
+        db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(notifications)
+          .where(and(eq(notifications.userId, session.user.id), isNull(notifications.readAt))),
       ]);
-      badges = { chats, people };
+      badges = { chats, people, notifications: notif[0]?.n ?? 0 };
+      // Запоминаем язык — на нём будут тексты уведомлений этому пользователю.
+      if (profile && profile.locale !== locale) {
+        await db.update(profiles).set({ locale }).where(eq(profiles.userId, session.user.id));
+      }
       me = { id: session.user.id, name: session.user.name, avatar: avatarUrl(session.user.id, profile?.avatarUpdatedAt) };
     } catch {
       // меню без значков лучше, чем упавшая страница

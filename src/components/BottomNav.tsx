@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type Labels = { forecast: string; calendar: string; add: string; ideas: string; more: string; chats: string; people: string };
+type Labels = { forecast: string; calendar: string; add: string; ideas: string; more: string; chats: string; people: string; notifications: string };
 type Me = { name: string; avatar: string | null; id: string } | null;
 
 const ICONS = {
@@ -14,6 +14,7 @@ const ICONS = {
   more: "M5 12h.01M12 12h.01M19 12h.01",
   chats: "M4 5h16v11H8l-4 4V5Z",
   people: "M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm13 9v-1a4 4 0 0 0-3-3.9M16 4.1a3 3 0 0 1 0 5.8",
+  notifications: "M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0",
 };
 
 // Телефон: 5 кнопок. Компьютер: все разделы.
@@ -30,6 +31,7 @@ const SIDE = [
   { key: "ideas", href: "/ideas" },
   { key: "chats", href: "/chats" },
   { key: "people", href: "/people" },
+  { key: "notifications", href: "/notifications" },
   { key: "more", href: "/more" },
 ] as const;
 
@@ -65,11 +67,11 @@ function Badge({ n, className = "" }: { n: number; className?: string }) {
 
 export default function BottomNav({
   labels,
-  badges = { chats: 0, people: 0 },
+  badges = { chats: 0, people: 0, notifications: 0 },
   me = null,
 }: {
   labels: Labels;
-  badges?: { chats: number; people: number };
+  badges?: { chats: number; people: number; notifications: number };
   me?: Me;
 }) {
   const pathname = usePathname();
@@ -99,7 +101,8 @@ export default function BottomNav({
         <nav className="space-y-1">
           {SIDE.map((it) => {
             const active = isActive(pathname, it.href);
-            const n = it.key === "chats" ? badges.chats : it.key === "people" ? badges.people : 0;
+            const n =
+              it.key === "chats" ? badges.chats : it.key === "people" ? badges.people : it.key === "notifications" ? badges.notifications : 0;
             return (
               <Link
                 key={it.key}

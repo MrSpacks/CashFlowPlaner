@@ -21,6 +21,7 @@ import {
   incomes,
   incomeSources,
   messages,
+  notifications,
   payments,
   profiles,
   pushSubscriptions,
@@ -601,7 +602,7 @@ export async function sendTestPush() {
     body: DICTIONARIES[isLocale(loc) ? loc : "en"].rm.pushTest,
     url: "/",
     tag: "test",
-  }));
+  }), { store: false });
   return sent;
 }
 
@@ -796,8 +797,24 @@ export async function sendMessage(conversationId: string, body: string) {
         body: c.eventId ? `${user.name}: ${preview}` : preview,
         url: `/chats/${c.id}`,
         tag: `chat-${c.id}`,
-      })),
+      }), { store: false }),
     ),
   );
   return { id: m.id, userId: m.userId, body: m.body, createdAt: m.createdAt.toISOString() };
+}
+
+// ---------- центр уведомлений ----------
+export async function markAllNotificationsRead() {
+  const user = await requireUser();
+  await db
+    .update(notifications)
+    .set({ readAt: new Date() })
+    .where(and(eq(notifications.userId, user.id), isNull(notifications.readAt)));
+  revalidatePath("/", "layout");
+}
+
+export async function clearNotifications() {
+  const user = await requireUser();
+  await db.delete(notifications).where(eq(notifications.userId, user.id));
+  revalidatePath("/", "layout");
 }

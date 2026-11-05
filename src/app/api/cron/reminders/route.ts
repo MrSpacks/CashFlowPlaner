@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { pushSubscriptions, reminderLog } from "@/db/schema";
+import { authUser, reminderLog } from "@/db/schema";
 import { DICTIONARIES, INTL_LOCALE, isLocale } from "@/i18n/dictionaries";
 import { formatMoney, todayISO } from "@/lib/forecast";
 import { sendPushToUser } from "@/lib/push";
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
   const today = todayISO();
-  const users = [...new Set((await db.select({ u: pushSubscriptions.userId }).from(pushSubscriptions)).map((r) => r.u))];
+  const users = (await db.select({ u: authUser.id }).from(authUser)).map((r) => r.u);
   let notified = 0;
 
   for (const userId of users) {
@@ -42,10 +42,9 @@ export async function GET(req: Request) {
       return { title: t.title, body: lines.join("\n"), url: "/", tag: `daily-${today}` };
     });
 
-    if (sent > 0) {
-      await db.insert(reminderLog).values({ userId, day: today }).onConflictDoNothing();
-      notified++;
-    }
+    void sent;
+    await db.insert(reminderLog).values({ userId, day: today }).onConflictDoNothing();
+    notified++;
   }
   return Response.json({ ok: true, users: users.length, notified });
 }

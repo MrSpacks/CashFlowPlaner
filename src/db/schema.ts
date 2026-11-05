@@ -44,6 +44,7 @@ export const profiles = pgTable("profiles", {
   username: text("username"),
   avatarUpdatedAt: timestamp("avatar_updated_at", { withTimezone: true }),
   searchable: boolean("searchable").default(true).notNull(),
+  locale: text("locale"), // язык интерфейса — для текстов уведомлений
   createdAt: created(),
 });
 
@@ -359,4 +360,19 @@ export const chatReads = pgTable(
     lastReadAt: timestamp("last_read_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [primaryKey({ columns: [t.conversationId, t.userId] })],
+);
+
+/** Центр уведомлений в приложении (то же, что приходит push-ом, кроме чатов). */
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id").notNull().references(() => authUser.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    body: text("body").notNull(),
+    url: text("url").default("/").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: created(),
+  },
+  (t) => [index("notifications_user_created_idx").on(t.userId, t.createdAt)],
 );

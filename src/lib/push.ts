@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import webpush from "web-push";
 import { db } from "@/db";
-import { pushSubscriptions } from "@/db/schema";
+import { notifications, profiles, pushSubscriptions } from "@/db/schema";
 
 let configured = false;
 function configure() {
@@ -16,10 +16,25 @@ function configure() {
 
 export type PushPayload = { title: string; body: string; url?: string; tag?: string };
 
-/** Отправить уведомление на все устройства пользователя. Мёртвые подписки удаляются. */
-export async function sendPushToUser(userId: string, build: (locale: string) => PushPayload) {
-  if (!configure()) return 0;
+/**
+ * Уведомить пользователя: запись в центр уведомлений приложения (store) + push на все его устройства.
+ * Мёртвые push-подписки удаляются. Возвращает число отправленных push.
+ */
+export async function sendPushToUser(
+  userId: string,
+  build: (locale: string) => PushPayload,
+  opts: { store?: boolean } = {},
+) {
+  const store = opts.store ?? true;
   const subs = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+
+  if (store) {
+    const [p] = await db.select({ locale: profiles.locale }).from(profiles).where(eq(profiles.userId, userId)).limit(1);
+    const msg = build(p?.locale ?? subs[0]?.locale ?? "en");
+    await db.insert(notifications).values({ userId, title: msg.title, body: msg.body, url: msg.url ?? "/" });
+  }
+
+  if (!configure()) return 0;
   let sent = 0;
   for (const s of subs) {
     try {
