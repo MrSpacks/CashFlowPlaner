@@ -99,3 +99,36 @@ body {
   input::placeholder,
   textarea::placeholder { color: #64748b; }
 }
+
+/* ---------- Загрузка ---------- */
+@keyframes cfp-progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.cfp-progress { animation: cfp-progress 1s ease-in-out infinite; }
+
+@keyframes cfp-spin { to { transform: rotate(360deg); } }
+/* Кнопка, по которой нажали и ждём сервер */
+button[data-pending] {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+button[data-pending]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  border-color: #10b981 #10b98133 #10b98133 #10b98133;
+  animation: cfp-spin 0.7s linear infinite;
+}
+.bg-emerald-600[data-pending]::after { border-color: #fff #ffffff55 #ffffff55 #ffffff55; }
+
+/* Скелет экрана при переходе */
+@keyframes cfp-pulse { 50% { opacity: 0.45; } }
+.cfp-skeleton { animation: cfp-pulse 1.2s ease-in-out infinite; background: #e2e8f0; border-radius: 1rem; }
+[data-theme="dark"] .cfp-skeleton { background: #1e293b; }

@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
+import NetworkActivity from "@/components/NetworkActivity";
+import OfflineSync from "@/components/OfflineSync";
 import RegisterSW from "@/components/RegisterSW";
 import { getI18n, getTheme } from "@/i18n/server";
 import { and, eq, isNull, sql } from "drizzle-orm";
@@ -72,11 +74,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} data-theme={theme === "system" ? undefined : theme} suppressHydrationWarning>
       <head>{theme === "system" && <script dangerouslySetInnerHTML={{ __html: SYSTEM_THEME_SCRIPT }} />}</head>
       <body className="min-h-dvh antialiased">
+        <NetworkActivity />
         <div id="content">
+          {session && (
+            <OfflineSync
+              t={{
+                offline: t.of.offline,
+                queued: t.of.queued(-1).replace("-1", "{n}"),
+                synced: t.of.synced(-1).replace("-1", "{n}"),
+                syncing: t.of.syncing,
+              }}
+            />
+          )}
           <main className="mx-auto min-h-dvh max-w-xl pb-28 lg:max-w-5xl lg:px-6 lg:pt-4 lg:pb-12">{children}</main>
         </div>
         <BottomNav labels={t.nav} badges={badges} me={me} />
-        <RegisterSW />
+        <RegisterSW loggedIn={!!session} />
       </body>
     </html>
   );

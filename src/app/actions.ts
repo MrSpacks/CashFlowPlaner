@@ -230,10 +230,10 @@ function eventFields(fd: FormData) {
   };
 }
 
-export async function createEvent(fd: FormData) {
-  const user = await requireUser();
+/** Создать событие из данных формы (общая часть для обычной формы и отложенных офлайн-событий). */
+async function insertEvent(user: { id: string; name: string }, fd: FormData): Promise<string | null> {
   const fields = eventFields(fd);
-  if (!fields.title) return;
+  if (!fields.title) return null;
   const calendarId = await getDefaultCalendarId(user.id, user.name);
   const [ev] = await db
     .insert(events)
@@ -252,8 +252,25 @@ export async function createEvent(fd: FormData) {
       dueDate: fields.startDate,
     });
   }
+  return ev.id;
+}
+
+export async function createEvent(fd: FormData) {
+  const user = await requireUser();
+  const id = await insertEvent(user, fd);
+  if (!id) return;
   revalidatePath("/", "layout");
-  redirect(`/events/${ev.id}`);
+  redirect(`/events/${id}`);
+}
+
+/** Отправка события, созданного без интернета (из очереди на телефоне). */
+export async function syncOfflineEvent(entries: [string, string][]) {
+  const user = await requireUser();
+  const fd = new FormData();
+  for (const [k, v] of entries.slice(0, 50)) fd.append(String(k), String(v).slice(0, 2000));
+  const id = await insertEvent(user, fd);
+  revalidatePath("/", "layout");
+  return id;
 }
 
 export async function updateEvent(fd: FormData) {

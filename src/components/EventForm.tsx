@@ -1,6 +1,7 @@
 import { createEvent, updateEvent } from "@/app/actions";
 import { CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
 import { EventDateTimeFields } from "@/components/DatePicker";
+import OfflineForm from "@/components/OfflineForm";
 import type { Dict } from "@/i18n/dictionaries";
 import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, TYPE_ICON, type EventRow } from "@/lib/events";
 
@@ -11,16 +12,19 @@ export default function EventForm({
   baseCurrency,
   privateLabel,
   dates,
+  savedOffline,
 }: {
   t: Dict["ev"];
   privateLabel: string;
   dates: { months: string[]; weekdays: string[]; today: string; clear: string; placeholder: string };
+  /** Текст «сохранено на телефоне» — включает офлайн-режим для новой формы. */
+  savedOffline?: string;
   event?: EventRow;
   defaults?: { status?: string; start?: string; type?: string };
   baseCurrency: string;
 }) {
   return (
-    <form action={event ? updateEvent : createEvent} className="space-y-3">
+    <FormShell event={!!event} savedOffline={savedOffline}>
       {event && <input type="hidden" name="id" value={event.id} />}
       <div>
         <label className={labelCls}>{t.name}</label>
@@ -119,6 +123,21 @@ export default function EventForm({
       </div>
 
       <button className={`${btnCls} w-full`}>{event ? t.edit : t.create}</button>
+    </FormShell>
+  );
+}
+
+function FormShell({ event, savedOffline, children }: { event: boolean; savedOffline?: string; children: React.ReactNode }) {
+  if (!event && savedOffline) {
+    return (
+      <OfflineForm action={createEvent} className="space-y-3" savedText={savedOffline}>
+        {children}
+      </OfflineForm>
+    );
+  }
+  return (
+    <form action={event ? updateEvent : createEvent} className="space-y-3">
+      {children}
     </form>
   );
 }

@@ -24,7 +24,7 @@ export default async function NewEventPage({
       <PageHeader title={t.ev.newTitle} />
       <div className="px-4">
         <Card>
-          <EventForm t={t.ev} defaults={defaults} baseCurrency={profile.baseCurrency} privateLabel={t.sh.privateEvent} dates={dateLabels(t)} />
+          <EventForm t={t.ev} defaults={defaults} baseCurrency={profile.baseCurrency} privateLabel={t.sh.privateEvent} dates={dateLabels(t)} savedOffline={t.of.savedOffline} />
         </Card>
       </div>
     </>

@@ -296,6 +296,14 @@ const ru = {
     markAll: "Отметить все прочитанными",
     clearAll: "Очистить",
   },
+  of: {
+    offline: "Нет интернета — новые события сохранятся на телефоне и отправятся при подключении.",
+    queued: (n: number) => `Ждут отправки: ${n}`,
+    synced: (n: number) => `Отправлено на сервер: ${n}`,
+    savedOffline: "Сохранено на телефоне — отправится, когда появится интернет.",
+    syncing: "Отправляю…",
+    failed: "Нет связи с сервером. Попробуйте ещё раз.",
+  },
 };
 
 export type Dict = typeof ru;
@@ -588,6 +596,14 @@ const cs: Dict = {
     markAll: "Označit vše jako přečtené",
     clearAll: "Vymazat",
   },
+  of: {
+    offline: "Nejste online — nové události se uloží v telefonu a odešlou se po připojení.",
+    queued: (n: number) => `Čeká na odeslání: ${n}`,
+    synced: (n: number) => `Odesláno na server: ${n}`,
+    savedOffline: "Uloženo v telefonu — odešle se, až bude internet.",
+    syncing: "Odesílám…",
+    failed: "Server není dostupný. Zkuste to znovu.",
+  },
 };
 
 const en: Dict = {
@@ -877,6 +893,14 @@ const en: Dict = {
     centerEmpty: "No notifications yet. Payment reminders, friend requests and invitations will appear here.",
     markAll: "Mark all as read",
     clearAll: "Clear",
+  },
+  of: {
+    offline: "You're offline — new events are saved on the phone and sent once you reconnect.",
+    queued: (n: number) => `Waiting to send: ${n}`,
+    synced: (n: number) => `Sent to server: ${n}`,
+    savedOffline: "Saved on the phone — will be sent when you're online.",
+    syncing: "Sending…",
+    failed: "Can't reach the server. Please try again.",
   },
 };
 
