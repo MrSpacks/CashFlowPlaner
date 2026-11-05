@@ -1,12 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
-// Главные экраны, которые должны открываться без интернета.
-const WARM = ["/", "/calendar", "/events", "/events/new", "/ideas", "/more", "/notifications", "/chats"];
 const WARM_KEY = "cfp-warm-at";
 
+async function post(msg: unknown) {
+  if (!("serviceWorker" in navigator)) return;
+  const reg = await navigator.serviceWorker.ready;
+  (navigator.serviceWorker.controller ?? reg.active)?.postMessage(msg);
+}
+
 export default function RegisterSW({ loggedIn }: { loggedIn: boolean }) {
+  const pathname = usePathname();
+  const search = useSearchParams();
+
+  // Регистрация + прогрев главных экранов (не чаще раза в 3 часа), очистка после выхода.
   useEffect(() => {
     if (!("serviceWorker" in navigator) || process.env.NODE_ENV !== "production") return;
     navigator.serviceWorker
@@ -20,14 +29,23 @@ export default function RegisterSW({ loggedIn }: { loggedIn: boolean }) {
           return;
         }
         if (!navigator.onLine) return;
-        // Прогреваем не чаще раза в 3 часа.
         const last = Number(localStorage.getItem(WARM_KEY) ?? 0);
         if (Date.now() - last < 3 * 3600 * 1000) return;
-        const reg = await navigator.serviceWorker.ready;
-        reg.active?.postMessage({ type: "warm", urls: WARM });
+        await post({ type: "warm" });
         localStorage.setItem(WARM_KEY, String(Date.now()));
       })
       .catch(() => {});
   }, [loggedIn]);
+
+  // Каждый открытый экран тоже сохраняем на телефоне (если его там ещё нет).
+  useEffect(() => {
+    if (!loggedIn || process.env.NODE_ENV !== "production" || !navigator.onLine) return;
+    const qs = search.toString();
+    const url = qs ? `${pathname}?${qs}` : pathname;
+    if (/^\/(login|register|invite|join|notifications\/)/.test(url)) return;
+    const t = setTimeout(() => void post({ type: "warm", urls: [url], onlyMissing: true }).catch(() => {}), 1500);
+    return () => clearTimeout(t);
+  }, [pathname, search, loggedIn]);
+
   return null;
 }

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import NetworkActivity from "@/components/NetworkActivity";
@@ -89,7 +90,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <main className="mx-auto min-h-dvh max-w-xl pb-28 lg:max-w-5xl lg:px-6 lg:pt-4 lg:pb-12">{children}</main>
         </div>
         <BottomNav labels={t.nav} badges={badges} me={me} />
-        <RegisterSW loggedIn={!!session} />
+        <Suspense fallback={null}>
+          <RegisterSW loggedIn={!!session} />
+        </Suspense>
       </body>
     </html>
   );

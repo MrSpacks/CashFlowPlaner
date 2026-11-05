@@ -1,37 +1,71 @@
-// Простой service worker: делает приложение устанавливаемым и
-// показывает последние открытые страницы без интернета.
-const CACHE = "cfp-v4";
-const OFFLINE_HTML = `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Offline</title><body style="font-family:system-ui;background:#f8fafc;color:#0f172a;display:grid;place-items:center;min-height:100vh;margin:0;text-align:center;padding:24px">
-<div><div style="font-size:48px">📴</div><h1 style="font-size:20px">Нет интернета · Offline</h1>
-<p style="color:#64748b">Эта страница ещё не сохранена на телефоне. Откройте её один раз с интернетом.</p>
-<p><a href="/" style="color:#059669">← CashFlowPlaner</a></p></div></body></html>`;
+// Service worker CashFlowPlaner: установка как приложение, работа без интернета, push-уведомления.
+const CACHE = "cfp-v5";
+// Главные экраны — сохраняем при запуске service worker'а (если пользователь вошёл).
+const WARM = ["/", "/calendar", "/events", "/events/new", "/ideas", "/more", "/notifications", "/chats", "/people", "/profile"];
+const LABELS = {
+  "/": "📊 Přehled / Прогноз",
+  "/calendar": "📅 Kalendář / Календарь",
+  "/events": "🗂 Události / События",
+  "/events/new": "＋ Nová událost / Новое событие",
+  "/ideas": "💡 Nápady / Идеи",
+  "/more": "⋯ Další / Ещё",
+  "/notifications": "🔔 Oznámení / Уведомления",
+  "/chats": "💬 Chaty / Чаты",
+  "/people": "👥 Lidé / Люди",
+  "/profile": "👤 Profil / Профиль",
+};
+
+/** Сохранить страницы (only missing — только те, которых ещё нет). Перенаправления (на вход) не сохраняем. */
+async function warm(urls, onlyMissing) {
+  const c = await caches.open(CACHE);
+  await Promise.all(
+    urls.map(async (u) => {
+      try {
+        if (onlyMissing && (await c.match(u))) return;
+        const res = await fetch(u, { credentials: "same-origin" });
+        if (res.ok && !res.redirected && (res.headers.get("content-type") || "").includes("text/html")) await c.put(u, res);
+      } catch {}
+    }),
+  );
+}
+
+/** Страница «нет интернета»: кнопка назад + список того, что уже есть на телефоне. */
+async function offlinePage() {
+  const c = await caches.open(CACHE);
+  const keys = (await c.keys())
+    .map((r) => new URL(r.url).pathname + new URL(r.url).search)
+    .filter((p) => !p.startsWith("/_next/") && !p.startsWith("/icons/"));
+  const uniq = [...new Set(keys)].sort((x, y) => (LABELS[x] ? 0 : 1) - (LABELS[y] ? 0 : 1) || x.localeCompare(y));
+  const links = uniq
+    .map((p) => `<a href="${p}" style="display:block;padding:12px 14px;margin:6px 0;background:#fff;border-radius:12px;color:#0f172a;text-decoration:none;border:1px solid #e2e8f0">${LABELS[p] || p}</a>`)
+    .join("");
+  const html = `<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Offline</title><body style="font-family:system-ui;background:#f8fafc;color:#0f172a;margin:0;padding:calc(24px + env(safe-area-inset-top)) 20px 32px">
+<button onclick="history.length>1?history.back():location.assign('/')" style="font:inherit;font-size:16px;color:#059669;background:none;border:0;padding:8px 0;margin-bottom:8px">← Zpět / Назад</button>
+<div style="text-align:center"><div style="font-size:44px">📴</div><h1 style="font-size:20px;margin:8px 0">Nejste online · Нет интернета</h1>
+<p style="color:#64748b;margin:0 0 16px">Tato stránka není uložená v telefonu. · Эта страница ещё не сохранена на телефоне.</p></div>
+${links ? `<p style="color:#64748b;font-size:13px;margin:16px 0 4px">Uloženo v telefonu · Сохранено на телефоне:</p>${links}` : ""}
+</body></html>`;
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } });
+}
 
 self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))),
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+      .then(() => warm(WARM, true)),
   );
-  self.clients.claim();
 });
 
-// Прогрев: приложение присылает список главных экранов — сохраняем их для работы без сети.
+// Приложение просит сохранить страницы: главные экраны или только что открытый экран.
 self.addEventListener("message", (event) => {
-  if (event.data?.type !== "warm" || !Array.isArray(event.data.urls)) return;
-  event.waitUntil(
-    caches.open(CACHE).then((c) =>
-      Promise.all(
-        event.data.urls.map((u) =>
-          fetch(u, { credentials: "same-origin" })
-            .then((res) => {
-              if (res.ok && !res.redirected) return c.put(u, res);
-            })
-            .catch(() => {}),
-        ),
-      ),
-    ),
-  );
+  const d = event.data || {};
+  if (d.type === "warm") event.waitUntil(warm(Array.isArray(d.urls) ? d.urls : WARM, !!d.onlyMissing));
+  if (d.type === "clear") event.waitUntil(caches.delete(CACHE));
 });
 
 self.addEventListener("fetch", (event) => {
@@ -74,11 +108,7 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(async () => {
           const c = await caches.open(CACHE);
-          return (
-            (await c.match(url.pathname + url.search)) ||
-            (await c.match(url.pathname)) ||
-            new Response(OFFLINE_HTML, { headers: { "content-type": "text/html; charset=utf-8" } })
-          );
+          return (await c.match(url.pathname + url.search)) || (await c.match(url.pathname)) || offlinePage();
         }),
     );
   }
