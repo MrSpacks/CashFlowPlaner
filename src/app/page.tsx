@@ -103,6 +103,18 @@ export default async function ForecastPage() {
                   <dd className={`truncate font-bold ${mo.closing < 0 ? "text-rose-600" : "text-slate-900"}`}>{money(mo.closing)}</dd>
                 </div>
               </dl>
+              {(() => {
+                const net = mo.income + mo.refunds - mo.fixed - mo.eventPayments;
+                return (
+                  <p className="mt-2 flex items-baseline justify-between border-t border-slate-100 pt-2 text-sm">
+                    <span className="text-slate-500">{t.forecast.monthNet}</span>
+                    <span className={`font-semibold ${net < 0 ? "text-rose-600" : "text-emerald-700"}`}>
+                      {net > 0 ? "+" : net < 0 ? "−" : ""}
+                      {money(Math.abs(net))}
+                    </span>
+                  </p>
+                );
+              })()}
               {mo.movable.length > 0 && (
                 <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
                   {t.forecast.movable}: {mo.movable.map((x) => `${x.title} (${money(x.amount)})`).join(", ")}

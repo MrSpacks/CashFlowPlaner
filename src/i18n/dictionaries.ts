@@ -14,6 +14,7 @@ const ru = {
   nav: { forecast: "Прогноз", calendar: "Календарь", add: "Добавить", ideas: "Идеи", more: "Ещё", chats: "Чаты", people: "Люди", notifications: "Уведомления" },
   common: { save: "Сохранить", add: "Добавить", delete: "Удалить", back: "Назад", currency: "Валюта", amount: "Сумма", soon: "скоро", today: "Сегодня", clear: "Очистить", pickDate: "Выберите дату", pickDay: "Выберите день", dayFormat: "{d}-го числа" },
   forecast: {
+    monthNet: "Итог месяца (приход − расход)",
     title: "Прогноз",
     subtitle: "Сколько придёт, сколько уйдёт и что останется",
     ok: "В плюсе",
@@ -322,6 +323,7 @@ const cs: Dict = {
   nav: { forecast: "Přehled", calendar: "Kalendář", add: "Přidat", ideas: "Nápady", more: "Další", chats: "Chaty", people: "Lidé", notifications: "Oznámení" },
   common: { save: "Uložit", add: "Přidat", delete: "Smazat", back: "Zpět", currency: "Měna", amount: "Částka", soon: "brzy", today: "Dnes", clear: "Vymazat", pickDate: "Vyberte datum", pickDay: "Vyberte den", dayFormat: "{d}. den v měsíci" },
   forecast: {
+    monthNet: "Bilance měsíce (příjmy − výdaje)",
     title: "Přehled",
     subtitle: "Kolik přijde, kolik odejde a co zbude",
     ok: "V plusu",
@@ -628,6 +630,7 @@ const en: Dict = {
   nav: { forecast: "Forecast", calendar: "Calendar", add: "Add", ideas: "Ideas", more: "More", chats: "Chats", people: "People", notifications: "Notifications" },
   common: { save: "Save", add: "Add", delete: "Delete", back: "Back", currency: "Currency", amount: "Amount", soon: "soon", today: "Today", clear: "Clear", pickDate: "Pick a date", pickDay: "Pick a day", dayFormat: "on the {d}" },
   forecast: {
+    monthNet: "Month balance (in − out)",
     title: "Forecast",
     subtitle: "What comes in, what goes out and what's left",
     ok: "In the plus",
