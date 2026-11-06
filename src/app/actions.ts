@@ -119,7 +119,7 @@ export async function saveBalance(fd: FormData) {
   const user = await requireUser();
   const amount = parseAmount(fd.get("amount"));
   if (amount == null) return;
-  const asOf = /^\d{4}-\d{2}-\d{2}$/.test(str(fd, "date")) ? str(fd, "date") : todayISO();
+  const asOf = todayISO(); // баланс — «сколько у меня сейчас», без выбора даты
   await db.insert(balanceSnapshots).values({ ownerId: user.id, amount: amount.toFixed(2), currency: currency(fd), asOfDate: asOf });
   revalidatePath("/", "layout");
   redirect("/more/balance?saved=1");

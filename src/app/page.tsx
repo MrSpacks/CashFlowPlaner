@@ -5,7 +5,7 @@ import { Card, btnCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { buildUserForecast } from "@/lib/finance";
-import { formatDate, formatMoney, monthLabel, todayISO } from "@/lib/forecast";
+import { formatMoney, monthLabel, todayISO } from "@/lib/forecast";
 import { getReminders } from "@/lib/reminders";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +48,7 @@ export default async function ForecastPage() {
         title={t.forecast.title}
         subtitle={
           f.snapshot
-            ? t.forecast.now(formatMoney(Number(f.snapshot.amount), f.snapshot.currency, intl), formatDate(f.snapshot.asOfDate, intl))
+            ? t.forecast.now(formatMoney(Number(f.snapshot.amount), f.snapshot.currency, intl))
             : t.forecast.subtitle
         }
       />

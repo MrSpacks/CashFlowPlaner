@@ -51,6 +51,15 @@ export async function getOneTimeIncomes(userId: string) {
   return db.select().from(oneTimeIncomes).where(eq(oneTimeIncomes.ownerId, userId)).orderBy(oneTimeIncomes.date);
 }
 
+/** Входит ли разовый доход в прогноз (а не «уже в балансе»). */
+export function oneTimeCounts(
+  o: { date: string; createdAt: Date },
+  snap: { asOfDate: string; createdAt: Date } | null | undefined,
+) {
+  if (!snap) return true;
+  return o.date > snap.asOfDate || o.createdAt > snap.createdAt;
+}
+
 export async function getFixedExpenses(userId: string) {
   return db.select().from(fixedExpenses).where(eq(fixedExpenses.ownerId, userId)).orderBy(fixedExpenses.createdAt);
 }
@@ -158,9 +167,12 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
       if (date > cutoff) income += toBase(value, s.currency);
     }
 
-    // Разовые доходы — в свою дату (если она после даты баланса).
+    // Разовые доходы. Считаются, если дата после баланса ИЛИ доход внесён после сохранения баланса
+    // (значит, в баланс он не входил). Прошедшая дата — в текущий месяц.
     for (const o of oneTime) {
-      if (o.date.startsWith(month) && o.date > cutoff) income += toBase(Number(o.amount), o.currency);
+      if (!oneTimeCounts(o, snap)) continue;
+      const d = o.date < today ? today : o.date;
+      if (d.startsWith(month)) income += toBase(Number(o.amount), o.currency);
     }
 
     let fixedSum = 0;

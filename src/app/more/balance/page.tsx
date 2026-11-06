@@ -1,15 +1,13 @@
 import { desc, eq } from "drizzle-orm";
 import { saveBalance } from "@/app/actions";
-import DatePicker from "@/components/DatePicker";
 import PageHeader from "@/components/PageHeader";
 import { BackLink, Card, CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
 import { db } from "@/db";
 import { balanceSnapshots } from "@/db/schema";
-import { dateLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { getProfile } from "@/lib/finance";
-import { formatDate, formatMoney, todayISO } from "@/lib/forecast";
+import { formatDate, formatMoney } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
 
@@ -47,10 +45,6 @@ export default async function BalancePage() {
                 <label className={labelCls}>{t.common.currency}</label>
                 <CurrencySelect defaultValue={last?.currency ?? profile.baseCurrency} />
               </div>
-            </div>
-            <div>
-              <label className={labelCls}>{t.balance.date}</label>
-              <DatePicker name="date" defaultValue={todayISO()} labels={dateLabels(t)} required />
             </div>
             <button className={`${btnCls} w-full`}>{t.common.save}</button>
           </form>
