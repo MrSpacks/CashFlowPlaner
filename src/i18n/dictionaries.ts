@@ -105,6 +105,7 @@ const ru = {
     oneTimePlaceholder: "Премия",
     date: "Дата",
     oneTimeEmpty: "Пока нет разовых доходов.",
+    inBalance: "Уже в балансе на {d} — в прогноз не добавляется",
   },
   ev: {
     types: { trip: "Поездка", birthday: "День рождения", health: "Здоровье", purchase: "Покупка", other: "Другое" },
@@ -411,6 +412,7 @@ const cs: Dict = {
     oneTimePlaceholder: "Prémie",
     date: "Datum",
     oneTimeEmpty: "Zatím žádné jednorázové příjmy.",
+    inBalance: "Už je v zůstatku k {d} — do přehledu se nepřičítá",
   },
   ev: {
     types: { trip: "Cesta", birthday: "Narozeniny", health: "Zdraví", purchase: "Nákup", other: "Jiné" },
@@ -715,6 +717,7 @@ const en: Dict = {
     oneTimePlaceholder: "Bonus",
     date: "Date",
     oneTimeEmpty: "No one-time income yet.",
+    inBalance: "Already in the balance as of {d} — not added to the forecast",
   },
   ev: {
     types: { trip: "Trip", birthday: "Birthday", health: "Health", purchase: "Purchase", other: "Other" },

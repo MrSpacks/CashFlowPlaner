@@ -5,7 +5,7 @@ import { BackLink, Card, CurrencySelect, btnCls, inputCls, labelCls } from "@/co
 import { dateLabels, dayLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
-import { getIncomeData, getOneTimeIncomes, getProfile } from "@/lib/finance";
+import { getIncomeData, getLatestBalance, getOneTimeIncomes, getProfile } from "@/lib/finance";
 import { addMonths, formatDate, formatMoney, monthLabel, todayISO } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,8 @@ const MONTHS_SHOWN = 6;
 export default async function IncomePage() {
   const user = await requireUser();
   const { t, intl } = await getI18n();
-  const [profile, { sources, rows }, oneTime] = await Promise.all([getProfile(user.id), getIncomeData(user.id), getOneTimeIncomes(user.id)]);
+  const [profile, { sources, rows }, oneTime, snap] = await Promise.all([getProfile(user.id), getIncomeData(user.id), getOneTimeIncomes(user.id), getLatestBalance(user.id)]);
+  const cutoff = snap?.asOfDate ?? null;
   const start = todayISO().slice(0, 7);
   const months = Array.from({ length: MONTHS_SHOWN }, (_, i) => addMonths(start, i));
   const smallInput =
@@ -128,6 +129,9 @@ export default async function IncomePage() {
                     <div className="min-w-0">
                       <p className="truncate font-medium">{o.title}</p>
                       <p className="text-xs text-slate-400">{formatDate(o.date, intl)}</p>
+                      {cutoff && o.date <= cutoff && (
+                        <p className="text-xs text-amber-600">{t.income.inBalance.replace("{d}", formatDate(cutoff, intl))}</p>
+                      )}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="font-medium text-emerald-700">+{formatMoney(Number(o.amount), o.currency, intl)}</span>
