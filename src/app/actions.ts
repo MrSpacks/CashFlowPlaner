@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -531,6 +531,28 @@ export async function deleteSettlement(fd: FormData) {
   revalidatePath("/", "layout");
 }
 
+// ---------- соединение календарей ----------
+/** Соединить двух людей: каждый видит календарь другого. События остаются у авторов. */
+async function connectCalendars(a: string, aName: string, b: string, bName: string) {
+  const [ca, cb] = await Promise.all([getDefaultCalendarId(a, aName), getDefaultCalendarId(b, bName)]);
+  await db
+    .insert(calendarMembers)
+    .values([
+      { calendarId: ca, userId: b, role: "editor" },
+      { calendarId: cb, userId: a, role: "editor" },
+    ])
+    .onConflictDoNothing();
+}
+
+/** Разъединить: каждый перестаёт видеть события другого (кроме тех, где он участник). */
+async function disconnectCalendars(a: string, b: string) {
+  const own = await db.select({ id: calendars.id, ownerId: calendars.ownerId }).from(calendars).where(inArray(calendars.ownerId, [a, b]));
+  for (const c of own) {
+    const other = c.ownerId === a ? b : a;
+    await db.delete(calendarMembers).where(and(eq(calendarMembers.calendarId, c.id), eq(calendarMembers.userId, other)));
+  }
+}
+
 // ---------- общий календарь ----------
 export async function createCalendarInvite(fd: FormData) {
   const user = await requireUser();
@@ -559,10 +581,8 @@ export async function acceptCalendarInvite(fd: FormData) {
   if (inv.inviteeUserId && inv.inviteeUserId !== user.id) redirect("/join/invalid");
   const [cal] = await db.select().from(calendars).where(eq(calendars.id, inv.calendarId)).limit(1);
   if (cal && cal.ownerId !== user.id) {
-    await db
-      .insert(calendarMembers)
-      .values({ calendarId: inv.calendarId, userId: user.id, role: inv.role })
-      .onConflictDoUpdate({ target: [calendarMembers.calendarId, calendarMembers.userId], set: { role: inv.role } });
+    const [owner] = await db.select({ name: authUser.name }).from(authUser).where(eq(authUser.id, cal.ownerId)).limit(1);
+    await connectCalendars(cal.ownerId, owner?.name ?? "Calendar", user.id, user.name);
   }
   await db.update(calendarInvites).set({ acceptedBy: user.id }).where(eq(calendarInvites.id, inv.id));
   revalidatePath("/", "layout");
@@ -571,18 +591,15 @@ export async function acceptCalendarInvite(fd: FormData) {
 
 export async function removeCalendarMember(fd: FormData) {
   const user = await requireUser();
-  const calendarId = await getDefaultCalendarId(user.id, user.name);
-  await db
-    .delete(calendarMembers)
-    .where(and(eq(calendarMembers.calendarId, calendarId), eq(calendarMembers.userId, str(fd, "userId"))));
+  const other = str(fd, "userId");
+  if (other && other !== user.id) await disconnectCalendars(user.id, other);
   revalidatePath("/", "layout");
 }
 
 export async function leaveCalendar(fd: FormData) {
   const user = await requireUser();
-  await db
-    .delete(calendarMembers)
-    .where(and(eq(calendarMembers.calendarId, str(fd, "calendarId")), eq(calendarMembers.userId, user.id)));
+  const [cal] = await db.select({ ownerId: calendars.ownerId }).from(calendars).where(eq(calendars.id, str(fd, "calendarId"))).limit(1);
+  if (cal && cal.ownerId !== user.id) await disconnectCalendars(user.id, cal.ownerId);
   revalidatePath("/", "layout");
 }
 
@@ -647,13 +664,7 @@ export async function inviteToCalendarByEmail(fd: FormData) {
     .from(calendarMembers)
     .where(and(eq(calendarMembers.calendarId, calendarId), eq(calendarMembers.userId, found.id)))
     .limit(1);
-  if (member) {
-    await db
-      .update(calendarMembers)
-      .set({ role })
-      .where(and(eq(calendarMembers.calendarId, calendarId), eq(calendarMembers.userId, found.id)));
-    redirect("/more/sharing?sent=1");
-  }
+  if (member) redirect("/more/sharing");
   // Старые неотвеченные приглашения этому человеку — заменяем новым.
   await db
     .delete(calendarInvites)

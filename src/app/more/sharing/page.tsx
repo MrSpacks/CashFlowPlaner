@@ -69,6 +69,10 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
         .innerJoin(authUser, eq(authUser.id, calendars.ownerId))
         .where(inArray(calendars.id, mine.map((m) => m.calendarId)))
     : [];
+  const ownersOfShared = shared.length
+    ? await db.select({ id: calendars.id, ownerId: calendars.ownerId }).from(calendars).where(inArray(calendars.id, shared.map((c) => c.id)))
+    : [];
+  const sharedOnly = shared.filter((c) => !members.some((m) => m.userId === ownersOfShared.find((o) => o.id === c.id)?.ownerId));
 
   return (
     <>
@@ -104,13 +108,8 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
           <p className="mb-3 text-xs text-slate-500">{t.sh.emailHint}</p>
           <form action={inviteToCalendarByEmail} className="space-y-2">
             <input name="email" type="email" required autoComplete="email" placeholder="email@example.com" className={inputCls} />
-            <div className="flex gap-2">
-              <select name="role" defaultValue="editor" className={inputCls}>
-                <option value="editor">{t.sh.roles.editor}</option>
-                <option value="viewer">{t.sh.roles.viewer}</option>
-              </select>
-              <button className={`${btnCls} shrink-0`}>{t.sh.send}</button>
-            </div>
+            <input type="hidden" name="role" value="editor" />
+            <button className={`${btnCls} w-full`}>{t.sh.send}</button>
           </form>
         </Card>
 
@@ -124,9 +123,7 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
                 <li key={m.userId} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{m.name}</p>
-                    <p className="truncate text-xs text-slate-400">
-                      {m.email} · {t.sh.roles[m.role]}
-                    </p>
+                    <p className="truncate text-xs text-slate-400">{m.email}</p>
                   </div>
                   <form action={removeCalendarMember}>
                     <input type="hidden" name="userId" value={m.userId} />
@@ -138,18 +135,13 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
               ))}
             </ul>
           )}
+          {members.length > 0 && <p className="mt-2 text-xs text-slate-400">{t.sh.disconnectHint}</p>}
 
           <p className="mt-4 mb-2 text-xs font-medium text-slate-500">{t.sh.orLink}</p>
-          <div className="grid gap-2">
-            <form action={createCalendarInvite}>
-              <input type="hidden" name="role" value="viewer" />
-              <button className={`${btnGhostCls} w-full`}>＋ {t.sh.inviteViewer}</button>
-            </form>
-            <form action={createCalendarInvite}>
-              <input type="hidden" name="role" value="editor" />
-              <button className={`${btnCls} w-full`}>＋ {t.sh.inviteEditor}</button>
-            </form>
-          </div>
+          <form action={createCalendarInvite}>
+            <input type="hidden" name="role" value="editor" />
+            <button className={`${btnGhostCls} w-full`}>＋ {t.sh.inviteEditor}</button>
+          </form>
         </Card>
 
         {invites.length > 0 && (
@@ -163,7 +155,7 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate font-medium">
-                          {invitee ? `⏳ ${invitee.name}` : "🔗"} · {t.sh.roles[inv.role]}
+                          {invitee ? `⏳ ${invitee.name}` : "🔗"}
                         </p>
                         {inv.expiresAt && (
                           <p className="text-xs text-slate-400">{t.sh.validUntil(formatDate(inv.expiresAt.toISOString().slice(0, 10), intl))}</p>
@@ -193,11 +185,11 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
           </Card>
         )}
 
-        {shared.length > 0 && (
+        {sharedOnly.length > 0 && (
           <Card>
             <h2 className="mb-2 font-semibold">{t.sh.sharedWithMe}</h2>
             <ul className="divide-y divide-slate-100 text-sm">
-              {shared.map((c) => {
+              {sharedOnly.map((c) => {
                 const role = mine.find((m) => m.calendarId === c.id)?.role ?? "viewer";
                 return (
                   <li key={c.id} className="flex items-center justify-between gap-2 py-2">

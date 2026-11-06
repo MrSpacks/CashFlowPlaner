@@ -38,8 +38,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
       <Card className="text-center">
         <p className="text-4xl">📅</p>
         <p className="mt-2 text-sm text-slate-500">{t.sh.joinTitle}</p>
-        <h1 className="mt-1 text-xl font-bold">{t.sh.joinText(owner.name)}</h1>
-        <p className="mt-2 text-sm text-slate-600">{t.sh.roles[inv.role]}</p>
+        <h1 className="mt-1 text-lg font-bold">{t.sh.joinText(owner.name)}</h1>
         {session ? (
           <form action={acceptCalendarInvite} className="mt-5">
             <input type="hidden" name="token" value={token} />
