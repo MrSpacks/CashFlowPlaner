@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { balanceSnapshots, fixedExpenses, incomes, incomeSources, profiles } from "@/db/schema";
+import { balanceSnapshots, fixedExpenses, incomes, incomeSources, oneTimeIncomes, profiles } from "@/db/schema";
 import { getItemsWithPayments, listUserEvents, occurrence } from "./events";
 import { getSplitData, sharesOf } from "./split";
 import { addMonths, dateInMonth, todayISO, type ForecastMonth } from "./forecast";
@@ -47,6 +47,10 @@ export async function getIncomeData(userId: string) {
   return { sources, rows };
 }
 
+export async function getOneTimeIncomes(userId: string) {
+  return db.select().from(oneTimeIncomes).where(eq(oneTimeIncomes.ownerId, userId)).orderBy(oneTimeIncomes.date);
+}
+
 export async function getFixedExpenses(userId: string) {
   return db.select().from(fixedExpenses).where(eq(fixedExpenses.ownerId, userId)).orderBy(fixedExpenses.createdAt);
 }
@@ -62,11 +66,12 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
   const profile = await getProfile(userId);
   const base = profile.baseCurrency ?? "CZK";
   const cushion = Number(profile.cushionAmount ?? 0);
-  const [snap, { sources, rows }, fixed, allEvents] = await Promise.all([
+  const [snap, { sources, rows }, fixed, allEvents, oneTime] = await Promise.all([
     getLatestBalance(userId),
     getIncomeData(userId),
     getFixedExpenses(userId),
     listUserEvents(userId),
+    getOneTimeIncomes(userId),
   ]);
   const evs = allEvents.filter((e) => e.status !== "cancelled" && e.status !== "idea");
   const { items, pays } = await getItemsWithPayments(evs.map((e) => e.id));
@@ -76,6 +81,7 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
     snap?.currency,
     ...sources.map((s) => s.currency),
     ...fixed.map((f) => f.currency),
+    ...oneTime.map((o) => o.currency),
     ...items.map((i) => i.currency),
     ...pays.map((p) => p.currency),
     ...setts.map((x) => x.currency),
@@ -152,6 +158,11 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
       if (date > cutoff) income += toBase(value, s.currency);
     }
 
+    // Разовые доходы — в свою дату (если она после даты баланса).
+    for (const o of oneTime) {
+      if (o.date.startsWith(month) && o.date > cutoff) income += toBase(Number(o.amount), o.currency);
+    }
+
     let fixedSum = 0;
     for (const f of fixed) {
       if (f.activeFrom && f.activeFrom.slice(0, 7) > month) continue;
@@ -183,6 +194,6 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
     base,
     snapshot: snap,
     months: result,
-    isEmpty: !snap && sources.length === 0 && fixed.length === 0 && items.length === 0,
+    isEmpty: !snap && sources.length === 0 && fixed.length === 0 && items.length === 0 && oneTime.length === 0,
   };
 }

@@ -22,6 +22,7 @@ import {
   incomeSources,
   messages,
   notifications,
+  oneTimeIncomes,
   payments,
   profiles,
   pushSubscriptions,
@@ -833,5 +834,22 @@ export async function markAllNotificationsRead() {
 export async function clearNotifications() {
   const user = await requireUser();
   await db.delete(notifications).where(eq(notifications.userId, user.id));
+  revalidatePath("/", "layout");
+}
+
+// ---------- разовые доходы ----------
+export async function addOneTimeIncome(fd: FormData) {
+  const user = await requireUser();
+  const title = str(fd, "title").slice(0, 120);
+  const amount = parseAmount(fd.get("amount"));
+  const date = isoOrNull(fd, "date");
+  if (!title || amount == null || amount <= 0 || !date) return;
+  await db.insert(oneTimeIncomes).values({ ownerId: user.id, title, amount: amount.toFixed(2), currency: currency(fd), date });
+  revalidatePath("/", "layout");
+}
+
+export async function deleteOneTimeIncome(fd: FormData) {
+  const user = await requireUser();
+  await db.delete(oneTimeIncomes).where(and(eq(oneTimeIncomes.id, str(fd, "id")), eq(oneTimeIncomes.ownerId, user.id)));
   revalidatePath("/", "layout");
 }

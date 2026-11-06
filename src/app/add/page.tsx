@@ -12,6 +12,7 @@ export default async function AddPage() {
     { item: t.add.event, href: "/events/new" },
     { item: t.add.expense, href: "/events" },
     { item: t.add.income, href: "/more/income" },
+    { item: t.add.oneTime, href: "/more/income#one-time" },
     { item: t.add.fixed, href: "/more/expenses" },
   ];
 

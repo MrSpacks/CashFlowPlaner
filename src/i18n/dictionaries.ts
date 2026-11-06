@@ -35,6 +35,7 @@ const ru = {
     event: ["Событие", "Поездка, день рождения, врач, покупка"],
     expense: ["Трата", "Статья расхода внутри события"],
     income: ["Доход", "Зарплата или другое поступление за месяц"],
+    oneTime: ["Разовый доход", "Премия, возврат налога, продажа — в одну дату"],
     fixed: ["Постоянный расход", "Аренда, коммуналка, подписки"],
   },
   more: {
@@ -99,6 +100,11 @@ const ru = {
     empty: "Пока нет источников дохода.",
     autoFilled: "авто",
     deleteSource: "Удалить источник",
+    oneTime: "Разовые доходы",
+    oneTimeHint: "Премия, возврат налога, продажа вещи — одна сумма в одну дату.",
+    oneTimePlaceholder: "Премия",
+    date: "Дата",
+    oneTimeEmpty: "Пока нет разовых доходов.",
   },
   ev: {
     types: { trip: "Поездка", birthday: "День рождения", health: "Здоровье", purchase: "Покупка", other: "Другое" },
@@ -335,6 +341,7 @@ const cs: Dict = {
     event: ["Událost", "Cesta, narozeniny, lékař, nákup"],
     expense: ["Výdaj", "Položka výdajů v rámci události"],
     income: ["Příjem", "Výplata nebo jiný příjem za měsíc"],
+    oneTime: ["Jednorázový příjem", "Prémie, vratka daně, prodej — k jednomu datu"],
     fixed: ["Pravidelný výdaj", "Nájem, energie, předplatné"],
   },
   more: {
@@ -399,6 +406,11 @@ const cs: Dict = {
     empty: "Zatím žádné zdroje příjmů.",
     autoFilled: "auto",
     deleteSource: "Smazat zdroj",
+    oneTime: "Jednorázové příjmy",
+    oneTimeHint: "Prémie, vratka daně, prodej věci — jedna částka k jednomu datu.",
+    oneTimePlaceholder: "Prémie",
+    date: "Datum",
+    oneTimeEmpty: "Zatím žádné jednorázové příjmy.",
   },
   ev: {
     types: { trip: "Cesta", birthday: "Narozeniny", health: "Zdraví", purchase: "Nákup", other: "Jiné" },
@@ -633,6 +645,7 @@ const en: Dict = {
     event: ["Event", "Trip, birthday, doctor, purchase"],
     expense: ["Expense", "A cost item within an event"],
     income: ["Income", "Salary or other monthly income"],
+    oneTime: ["One-time income", "Bonus, tax refund, sale — on one date"],
     fixed: ["Regular expense", "Rent, utilities, subscriptions"],
   },
   more: {
@@ -697,6 +710,11 @@ const en: Dict = {
     empty: "No income sources yet.",
     autoFilled: "auto",
     deleteSource: "Delete source",
+    oneTime: "One-time income",
+    oneTimeHint: "Bonus, tax refund, selling something — one amount on one date.",
+    oneTimePlaceholder: "Bonus",
+    date: "Date",
+    oneTimeEmpty: "No one-time income yet.",
   },
   ev: {
     types: { trip: "Trip", birthday: "Birthday", health: "Health", purchase: "Purchase", other: "Other" },

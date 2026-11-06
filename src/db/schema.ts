@@ -209,6 +209,21 @@ export const incomes = pgTable(
   (t) => [index("incomes_source_month_idx").on(t.sourceId, t.month), uniqueIndex("incomes_source_month_uq").on(t.sourceId, t.month)],
 );
 
+/** Разовый доход: премия, возврат налога, продажа вещи — одна сумма в одну дату. Только владельцу. */
+export const oneTimeIncomes = pgTable(
+  "one_time_incomes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: text("owner_id").notNull(),
+    title: text("title").notNull(),
+    amount: money("amount").notNull(),
+    currency: char("currency", { length: 3 }).default("CZK").notNull(),
+    date: date("date").notNull(),
+    createdAt: created(),
+  },
+  (t) => [index("one_time_incomes_owner_idx").on(t.ownerId, t.date)],
+);
+
 export const fixedExpenses = pgTable("fixed_expenses", {
   id: uuid("id").primaryKey().defaultRandom(),
   ownerId: text("owner_id").notNull(),
