@@ -77,9 +77,11 @@ export default async function ForecastPage() {
         {f.months.map((mo) => {
           const s = stateStyle[mo.state];
           return (
-            <li key={mo.month} className={`rounded-2xl bg-white p-4 shadow-sm ring-1 ${s.ring}`}>
+            <li key={mo.month} className={`relative rounded-2xl bg-white p-4 shadow-sm ring-1 transition active:scale-[0.99] ${s.ring}`}>
+              {/* Вся карточка ведёт в календарь этого месяца */}
+              <Link href={`/calendar?m=${mo.month}`} aria-label={monthLabel(mo.month, t.months)} className="absolute inset-0 rounded-2xl" />
               <div className="flex items-center justify-between gap-2">
-                <h2 className="font-semibold">{monthLabel(mo.month, t.months)}</h2>
+                <h2 className="font-semibold">{monthLabel(mo.month, t.months)} <span className="text-slate-400">›</span></h2>
                 <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${s.badge}`}>{t.forecast[mo.state]}</span>
               </div>
               <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
@@ -87,7 +89,7 @@ export default async function ForecastPage() {
                   <dt className="text-slate-500">{t.forecast.incoming}</dt>
                   <dd className="truncate font-medium text-emerald-700">{money(mo.income + mo.refunds)}</dd>
                   {mo.incomeMissing && (
-                    <dd className="text-xs text-amber-600">
+                    <dd className="relative z-10 text-xs text-amber-600">
                       <Link href="/more/income">{t.forecast.notSet}</Link>
                     </dd>
                   )}
