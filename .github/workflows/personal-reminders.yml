@@ -1,0 +1,14 @@
+# Личные напоминания (лекарства): каждые 5 минут дёргаем сервер — он сам решает, кому пора.
+# Vercel Hobby разрешает cron только раз в день, поэтому расписание здесь.
+# Вызов безопасен: каждое напоминание отправляется один раз.
+name: Personal reminders
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: curl -fsS --max-time 60 https://cashflowplaner.vercel.app/api/cron/personal
