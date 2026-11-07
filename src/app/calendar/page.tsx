@@ -1,7 +1,7 @@
 import Link from "next/link";
 import EventList, { type EventSummary } from "@/components/EventList";
 import PageHeader from "@/components/PageHeader";
-import { btnCls } from "@/components/ui";
+import { btnCls, cardCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { byDateTime, listEventsWithTotals, occurrenceInMonth, TYPE_DOT } from "@/lib/events";
@@ -83,7 +83,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     <>
       <PageHeader title={t.calendar.title} />
       <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-2">
-      <div className="mx-4 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
+      <div className={`${cardCls} mx-4 p-3`}>
         <div className="mb-2 flex items-center justify-between">
           <Link href={`/calendar?m=${addMonths(month, -1)}`} className="rounded-lg p-1.5 text-slate-500 active:bg-slate-100" aria-label="prev">
             <Arrow d="M15 18l-6-6 6-6" />

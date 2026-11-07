@@ -10,7 +10,7 @@ import {
 import PageHeader from "@/components/PageHeader";
 import QrCode from "@/components/QrCode";
 import ShareLink from "@/components/ShareLink";
-import { BackLink, Card, btnCls, btnGhostCls, inputCls } from "@/components/ui";
+import { BackLink, btnCls, btnGhostCls, Card, inputCls, listCls, XIcon } from "@/components/ui";
 import { db } from "@/db";
 import { authUser, calendarInvites, calendarMembers, calendars } from "@/db/schema";
 import { getI18n } from "@/i18n/server";
@@ -21,12 +21,6 @@ import Avatar from "@/components/Avatar";
 import { formatDate } from "@/lib/forecast";
 
 export const dynamic = "force-dynamic";
-
-const XIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-    <path d="M6 6l12 12M18 6L6 18" />
-  </svg>
-);
 
 export default async function SharingPage({ searchParams }: { searchParams: Promise<{ sent?: string; notfound?: string }> }) {
   const user = await requireUser();
@@ -118,7 +112,7 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
           {members.length === 0 ? (
             <p className="text-sm text-slate-500">{t.sh.noMembers}</p>
           ) : (
-            <ul className="divide-y divide-slate-100 text-sm">
+            <ul className={`${listCls} text-sm`}>
               {members.map((m) => (
                 <li key={m.userId} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
@@ -147,7 +141,7 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
         {invites.length > 0 && (
           <Card>
             <h2 className="mb-2 font-semibold">{t.sh.pending}</h2>
-            <ul className="divide-y divide-slate-100 text-sm">
+            <ul className={`${listCls} text-sm`}>
               {invites.map((inv) => {
                 const invitee = invitees.find((u) => u.id === inv.inviteeUserId);
                 return (
@@ -188,7 +182,7 @@ export default async function SharingPage({ searchParams }: { searchParams: Prom
         {sharedOnly.length > 0 && (
           <Card>
             <h2 className="mb-2 font-semibold">{t.sh.sharedWithMe}</h2>
-            <ul className="divide-y divide-slate-100 text-sm">
+            <ul className={`${listCls} text-sm`}>
               {sharedOnly.map((c) => {
                 const role = mine.find((m) => m.calendarId === c.id)?.role ?? "viewer";
                 return (

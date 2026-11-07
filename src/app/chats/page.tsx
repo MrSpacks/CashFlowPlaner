@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { listConversations } from "@/lib/chat";
 import { TYPE_ICON } from "@/lib/events";
 import { getUsersInfo } from "@/lib/people";
+import { cardCls, listCls } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function ChatsPage() {
             </Link>
           </div>
         ) : (
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+          <ul className={`${listCls} ${cardCls} overflow-hidden`}>
             {list.map((c) => {
               const other = c.other ? users.get(c.other) : null;
               const author = c.last ? users.get(c.last.userId) : null;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { acceptFriendRequest, removeFriendship, sendFriendRequest } from "@/app/actions";
 import PageHeader from "@/components/PageHeader";
 import PersonRow from "@/components/PersonRow";
-import { Card, inputCls } from "@/components/ui";
+import { Card, inputCls, listCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { getRelations, getUsersInfo, searchUsers, suggestions } from "@/lib/people";
@@ -65,7 +65,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
             {found.length === 0 ? (
               <p className="text-sm text-slate-500">{t.fr.noResults}</p>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className={listCls}>
                 {found.map((id) => (
                   <PersonRow key={id} u={I(id)} href={I(id).username ? `/u/${I(id).username}` : undefined}>
                     {actionFor(id)}
@@ -79,7 +79,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         {rel.incoming.length > 0 && (
           <Card>
             <h2 className="mb-1 font-semibold">{t.fr.requests}</h2>
-            <ul className="divide-y divide-slate-100">
+            <ul className={listCls}>
               {rel.incoming.map((r) => (
                 <PersonRow key={r.friendshipId} u={I(r.userId)}>
                   <form action={acceptFriendRequest}>
@@ -101,7 +101,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
           {rel.friends.length === 0 ? (
             <p className="text-sm text-slate-500">{t.fr.noFriends}</p>
           ) : (
-            <ul className="divide-y divide-slate-100">
+            <ul className={listCls}>
               {rel.friends.map((r) => (
                 <PersonRow key={r.friendshipId} u={I(r.userId)} href={I(r.userId).username ? `/u/${I(r.userId).username}` : undefined}>
                   <Link href={`/chats/with/${r.userId}`} className={`${small} bg-slate-100 text-slate-700`}>
@@ -116,7 +116,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         {sugg.length > 0 && (
           <Card>
             <h2 className="mb-1 font-semibold">{t.fr.suggestions}</h2>
-            <ul className="divide-y divide-slate-100">
+            <ul className={listCls}>
               {sugg.map((id) => (
                 <PersonRow key={id} u={I(id)}>
                   {actionFor(id)}
@@ -129,7 +129,7 @@ export default async function PeoplePage({ searchParams }: { searchParams: Promi
         {rel.outgoing.length > 0 && (
           <Card>
             <h2 className="mb-1 font-semibold">{t.fr.sent}</h2>
-            <ul className="divide-y divide-slate-100">
+            <ul className={listCls}>
               {rel.outgoing.map((r) => (
                 <PersonRow key={r.friendshipId} u={I(r.userId)}>
                   <form action={removeFriendship}>

@@ -4,7 +4,7 @@ import Avatar from "@/components/Avatar";
 import AvatarUpload from "@/components/AvatarUpload";
 import PageHeader from "@/components/PageHeader";
 import QrCode from "@/components/QrCode";
-import { Card, RowLink, btnCls, inputCls, labelCls } from "@/components/ui";
+import { btnCls, Card, cardCls, inputCls, labelCls, RowLink } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { getProfile } from "@/lib/finance";
@@ -78,7 +78,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           <QrCode path={`/u/${username}`} label={t.pr.myQr} hint={t.pr.myQrHint} />
         </Card>
 
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+        <div className={`${cardCls} overflow-hidden`}>
           <RowLink href="/people" label={t.fr.title} />
         </div>
         <Link href="/more" className="block text-center text-sm text-emerald-700">

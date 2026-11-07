@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { notifications } from "@/db/schema";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
+import { cardCls, listCls } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export default async function NotificationsPage() {
           <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">{t.rm.centerEmpty}</div>
         ) : (
           <>
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+            <ul className={`${listCls} ${cardCls} overflow-hidden`}>
               {list.map((n) => (
                 <li key={n.id}>
                   <Link href={`/notifications/${n.id}`} className={`flex gap-3 px-4 py-3 active:bg-slate-50 ${n.readAt ? "" : "bg-emerald-50"}`}>

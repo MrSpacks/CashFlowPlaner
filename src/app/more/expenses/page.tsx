@@ -1,7 +1,7 @@
 import { addFixedExpense, deleteFixedExpense } from "@/app/actions";
 import { DayOfMonthPicker } from "@/components/DatePicker";
 import PageHeader from "@/components/PageHeader";
-import { BackLink, Card, CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
+import { BackLink, btnCls, Card, cardCls, CurrencySelect, inputCls, labelCls, listCls, XIcon } from "@/components/ui";
 import { dayLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
@@ -25,7 +25,7 @@ export default async function ExpensesPage() {
         {items.length === 0 ? (
           <p className="text-sm text-slate-500">{t.fixed.empty}</p>
         ) : (
-          <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white text-sm shadow-sm ring-1 ring-slate-200">
+          <ul className={`${listCls} ${cardCls} overflow-hidden text-sm`}>
             {items.map((i) => (
               <li key={i.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
                 <div className="min-w-0">
@@ -37,9 +37,7 @@ export default async function ExpensesPage() {
                   <form action={deleteFixedExpense}>
                     <input type="hidden" name="id" value={i.id} />
                     <button aria-label={t.common.delete} className="rounded-lg p-1 text-slate-400 active:text-rose-600">
-                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                        <path d="M6 6l12 12M18 6L6 18" />
-                      </svg>
+                      <XIcon />
                     </button>
                   </form>
                 </div>

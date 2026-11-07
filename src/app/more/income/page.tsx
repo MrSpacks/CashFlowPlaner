@@ -1,7 +1,7 @@
 import { addIncomeSource, addOneTimeIncome, deleteIncomeSource, deleteOneTimeIncome, saveIncomeMonth } from "@/app/actions";
 import DatePicker, { DayOfMonthPicker } from "@/components/DatePicker";
 import PageHeader from "@/components/PageHeader";
-import { BackLink, Card, CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
+import { BackLink, btnCls, Card, CurrencySelect, inputCls, labelCls, listCls, XIcon } from "@/components/ui";
 import { dateLabels, dayLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
@@ -122,7 +122,7 @@ export default async function IncomePage() {
             {oneTime.length === 0 ? (
               <p className="mb-3 text-sm text-slate-500">{t.income.oneTimeEmpty}</p>
             ) : (
-              <ul className="mb-3 divide-y divide-slate-100 text-sm">
+              <ul className={`${listCls} mb-3 text-sm`}>
                 {oneTime.map((o) => (
                   <li key={o.id} className="flex items-center justify-between gap-2 py-2">
                     <div className="min-w-0">
@@ -135,9 +135,7 @@ export default async function IncomePage() {
                       <form action={deleteOneTimeIncome}>
                         <input type="hidden" name="id" value={o.id} />
                         <button aria-label={t.common.delete} className="p-1 text-slate-300 active:text-rose-600">
-                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-                            <path d="M6 6l12 12M18 6L6 18" />
-                          </svg>
+                          <XIcon />
                         </button>
                       </form>
                     </div>

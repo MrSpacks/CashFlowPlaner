@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { saveBalance } from "@/app/actions";
 import PageHeader from "@/components/PageHeader";
-import { BackLink, Card, CurrencySelect, btnCls, inputCls, labelCls } from "@/components/ui";
+import { BackLink, btnCls, Card, cardCls, CurrencySelect, inputCls, labelCls, listCls } from "@/components/ui";
 import { db } from "@/db";
 import { balanceSnapshots } from "@/db/schema";
 import { getI18n } from "@/i18n/server";
@@ -53,7 +53,7 @@ export default async function BalancePage() {
         {history.length > 0 && (
           <>
             <h2 className="mt-6 mb-2 text-sm font-medium text-slate-500">{t.balance.history}</h2>
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white text-sm shadow-sm ring-1 ring-slate-200">
+            <ul className={`${listCls} ${cardCls} overflow-hidden text-sm`}>
               {history.map((h) => (
                 <li key={h.id} className="flex justify-between px-4 py-2.5">
                   <span className="text-slate-500">{formatDate(h.asOfDate, intl)}</span>

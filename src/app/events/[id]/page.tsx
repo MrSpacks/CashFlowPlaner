@@ -17,7 +17,7 @@ import EventForm from "@/components/EventForm";
 import QrCode from "@/components/QrCode";
 import ShareLink from "@/components/ShareLink";
 import SplitEditor from "@/components/SplitEditor";
-import { BackLink, Card, CurrencySelect, btnCls, btnGhostCls, inputCls, labelCls } from "@/components/ui";
+import { BackLink, btnCls, btnGhostCls, Card, cardCls, CurrencySelect, inputCls, labelCls, listCls, XIcon } from "@/components/ui";
 import { dateLabels } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
@@ -29,12 +29,6 @@ import { formatDate, formatMoney, todayISO } from "@/lib/forecast";
 import { ensureCreatorParticipant, eventBalances, getSplitData, payerOf, sharesOf, transfers } from "@/lib/split";
 
 export const dynamic = "force-dynamic";
-
-const XIcon = () => (
-  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
-    <path d="M6 6l12 12M18 6L6 18" />
-  </svg>
-);
 
 export default async function EventPage({
   params,
@@ -148,7 +142,7 @@ export default async function EventPage({
             [t.ev.paid, paid, "text-emerald-700"],
             [t.ev.remaining, Math.max(total - paid, 0), "text-rose-600"],
           ].map(([label, value, cls]) => (
-            <div key={label as string} className="rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
+            <div key={label as string} className={`${cardCls} p-3`}>
               <p className="text-xs text-slate-500">{label}</p>
               <p className={`truncate font-semibold ${cls}`}>{money(value as number)}</p>
             </div>
@@ -163,7 +157,7 @@ export default async function EventPage({
           {items.length === 0 ? (
             <p className="text-sm text-slate-500">{t.ev.noExpenses}</p>
           ) : (
-            <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white text-sm shadow-sm ring-1 ring-slate-200">
+            <ul className={`${listCls} ${cardCls} overflow-hidden text-sm`}>
               {items.map((it) => {
                 const isPaid = it.status === "paid";
                 const due = it.dueDate ?? ev.startDate;
@@ -365,7 +359,7 @@ export default async function EventPage({
           <h2 id="people" className="mb-1 scroll-mt-4 font-semibold">{t.pt.title}</h2>
           <p className="mb-3 text-xs text-slate-500">{t.pt.inviteHint}</p>
           {notfound && <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">{t.pt.notFoundEmail}</p>}
-          <ul className="mb-3 divide-y divide-slate-100 text-sm">
+          <ul className={`${listCls} mb-3 text-sm`}>
             {parts.map((p) => (
               <li key={p.id} className="py-2">
                 <div className="flex items-center justify-between gap-2">
@@ -426,7 +420,7 @@ export default async function EventPage({
 
         {/* Редактирование и удаление */}
         {canEdit && (
-        <details className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+        <details className={`${cardCls} p-4`}>
           <summary className="cursor-pointer font-semibold">{t.ev.edit}</summary>
           <div className="mt-3">
             <EventForm t={t.ev} event={ev} baseCurrency={profile.baseCurrency} privateLabel={t.sh.privateEvent} dates={dateLabels(t)} />

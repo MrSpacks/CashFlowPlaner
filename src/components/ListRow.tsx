@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cardCls, listCls } from "@/components/ui";
 
 /**
  * Общая строка списка: иконка-эмодзи в квадрате, заголовок, подпись в одну строку, справа — что угодно.
@@ -35,5 +36,5 @@ export function ListRow({
 
 /** Карточка-группа строк с разделителями. */
 export function ListGroup({ children }: { children: React.ReactNode }) {
-  return <ul className="divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">{children}</ul>;
+  return <ul className={`${listCls} overflow-hidden ${cardCls}`}>{children}</ul>;
 }

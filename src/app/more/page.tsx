@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
 import { setLanguage, setTheme, signOutAction } from "@/app/actions";
 import IncomingInvites from "@/components/IncomingInvites";
+import { ListGroup, ListRow } from "@/components/ListRow";
 import Avatar from "@/components/Avatar";
 import PageHeader from "@/components/PageHeader";
 import PushToggle from "@/components/PushToggle";
-import { RowLink, btnGhostCls } from "@/components/ui";
+import { btnGhostCls, cardCls } from "@/components/ui";
 import { getDb } from "@/db";
 import { LANGUAGE_NAMES, LOCALES } from "@/i18n/dictionaries";
 import { getI18n, getTheme } from "@/i18n/server";
@@ -44,7 +45,7 @@ export default async function MorePage() {
       <PageHeader title={t.more.title} subtitle={`${t.more.signedInAs} ${user.email}`} />
       <IncomingInvites userId={user.id} t={t.sh} />
 
-      <Link href="/profile" className="mx-4 mb-4 flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 active:bg-slate-50">
+      <Link href="/profile" className={`${cardCls} mx-4 mb-4 flex items-center gap-3 p-4 active:bg-slate-50`}>
         <Avatar name={user.name} src={avatarUrl(user.id, profile.avatarUpdatedAt)} seed={user.id} size={52} />
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{user.name}</p>
@@ -53,21 +54,25 @@ export default async function MorePage() {
         <span className="text-sm text-emerald-700">{t.pr.title} →</span>
       </Link>
 
-      <div className="mx-4 mb-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-        <RowLink href="/people" label={`👥 ${t.fr.title}`} hint={requests ? `${t.fr.requests}: ${requests}` : undefined} />
-        <RowLink href="/chats" label={`💬 ${t.ch.title}`} />
-        <RowLink href="/ideas" label={`💡 ${t.ideas.title}`} />
-        <RowLink href="/more/reminders" label={`⏰ ${t.prm.title}`} />
+      <div className="mx-4 mb-4">
+        <ListGroup>
+          <li><ListRow href="/people" icon="👥" title={t.fr.title} subtitle={requests ? `${t.fr.requests}: ${requests}` : undefined} /></li>
+          <li><ListRow href="/chats" icon="💬" title={t.ch.title} /></li>
+          <li><ListRow href="/ideas" icon="💡" title={t.ideas.title} /></li>
+          <li><ListRow href="/more/reminders" icon="⏰" title={t.prm.title} /></li>
+        </ListGroup>
       </div>
 
-      <div className="mx-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
-        <RowLink href="/more/balance" label={t.more.balance} />
-        <RowLink href="/more/income" label={t.more.incomes} />
-        <RowLink href="/more/expenses" label={t.more.fixed} />
-        <RowLink href="/more/sharing" label={t.sh.title} />
+      <div className="mx-4">
+        <ListGroup>
+          <li><ListRow href="/more/balance" icon="🏦" title={t.more.balance} /></li>
+          <li><ListRow href="/more/income" icon="💵" title={t.more.incomes} /></li>
+          <li><ListRow href="/more/expenses" icon="🔁" title={t.more.fixed} /></li>
+          <li><ListRow href="/more/sharing" icon="🔗" title={t.sh.title} /></li>
+        </ListGroup>
       </div>
 
-      <div className="mx-4 mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+      <div className={`${cardCls} mx-4 mt-4 p-4`}>
         <p className="text-sm font-medium">{t.rm.pushTitle}</p>
         <p className="mb-3 text-xs text-slate-500">{t.rm.pushHint}</p>
         <PushToggle
@@ -82,7 +87,7 @@ export default async function MorePage() {
         />
       </div>
 
-      <form action={setLanguage} className="mx-4 mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+      <form action={setLanguage} className={`${cardCls} mx-4 mt-4 p-4`}>
         <p className="mb-2 text-sm font-medium">{t.lang.title}</p>
         <div className="grid grid-cols-2 gap-2">
           {(["auto", ...LOCALES] as const).map((l) => {
@@ -103,7 +108,7 @@ export default async function MorePage() {
         </div>
       </form>
 
-      <form action={setTheme} className="mx-4 mt-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+      <form action={setTheme} className={`${cardCls} mx-4 mt-4 p-4`}>
         <p className="mb-2 text-sm font-medium">{t.theme.title}</p>
         <div className="grid grid-cols-3 gap-2">
           {(["system", "light", "dark"] as const).map((th) => (

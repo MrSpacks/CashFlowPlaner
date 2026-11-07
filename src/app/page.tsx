@@ -1,7 +1,7 @@
 import Link from "next/link";
 import IncomingInvites from "@/components/IncomingInvites";
 import PageHeader from "@/components/PageHeader";
-import { Card, btnCls } from "@/components/ui";
+import { btnCls, Card, cardBaseCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { buildUserForecast } from "@/lib/finance";
@@ -106,7 +106,7 @@ export default async function ForecastPage() {
         {f.months.map((mo) => {
           const s = stateStyle[mo.state];
           return (
-            <li key={mo.month} className={`relative rounded-2xl bg-white p-4 shadow-sm ring-1 transition active:scale-[0.99] ${s.ring}`}>
+            <li key={mo.month} className={`relative ${cardBaseCls} p-4 transition active:scale-[0.99] ${s.ring}`}>
               {/* Вся карточка ведёт в календарь этого месяца */}
               <Link href={`/calendar?m=${mo.month}`} aria-label={monthLabel(mo.month, t.months)} className="absolute inset-0 rounded-2xl" />
               <div className="flex items-center justify-between gap-2">
