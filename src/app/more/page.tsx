@@ -57,6 +57,7 @@ export default async function MorePage() {
         <RowLink href="/people" label={`👥 ${t.fr.title}`} hint={requests ? `${t.fr.requests}: ${requests}` : undefined} />
         <RowLink href="/chats" label={`💬 ${t.ch.title}`} />
         <RowLink href="/ideas" label={`💡 ${t.ideas.title}`} />
+        <RowLink href="/more/reminders" label={`⏰ ${t.prm.title}`} />
       </div>
 
       <div className="mx-4 divide-y divide-slate-100 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">

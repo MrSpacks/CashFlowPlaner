@@ -1,7 +1,7 @@
 // Service worker CashFlowPlaner: установка как приложение, работа без интернета, push-уведомления.
-const CACHE = "cfp-v5";
+const CACHE = "cfp-v6";
 // Главные экраны — сохраняем при запуске service worker'а (если пользователь вошёл).
-const WARM = ["/", "/calendar", "/events", "/events/new", "/ideas", "/more", "/notifications", "/chats", "/people", "/profile"];
+const WARM = ["/", "/calendar", "/events", "/events/new", "/ideas", "/more", "/more/reminders", "/notifications", "/chats", "/people", "/profile"];
 const LABELS = {
   "/": "📊 Přehled / Прогноз",
   "/calendar": "📅 Kalendář / Календарь",
@@ -128,6 +128,10 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       tag: data.tag,
+      // Важные (лекарства) — не исчезают сами, вибрируют и звучат снова при повторе.
+      requireInteraction: !!data.sticky,
+      renotify: !!data.sticky && !!data.tag,
+      vibrate: data.sticky ? [300, 150, 300, 150, 300] : undefined,
       data: { url: data.url || "/" },
     }),
   );

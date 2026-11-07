@@ -24,6 +24,8 @@ import {
   notifications,
   oneTimeIncomes,
   payments,
+  personalReminders,
+  personalReminderSends,
   profiles,
   pushSubscriptions,
   settlements,
@@ -32,6 +34,7 @@ import { DICTIONARIES, isLocale } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
 import { auth, requireUser } from "@/lib/auth";
 import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, getEditableEvent } from "@/lib/events";
+import { cleanTimes } from "@/lib/personalReminders";
 import { CURRENCIES, parseAmount, todayISO } from "@/lib/forecast";
 import { getConversationForUser, markRead, recipientsOf } from "@/lib/chat";
 import { friendStatus, USERNAME_RE } from "@/lib/people";
@@ -862,5 +865,50 @@ export async function addOneTimeIncome(fd: FormData) {
 export async function deleteOneTimeIncome(fd: FormData) {
   const user = await requireUser();
   await db.delete(oneTimeIncomes).where(and(eq(oneTimeIncomes.id, str(fd, "id")), eq(oneTimeIncomes.ownerId, user.id)));
+  revalidatePath("/", "layout");
+}
+
+// ---------- личные напоминания ----------
+export async function addPersonalReminder(fd: FormData) {
+  const user = await requireUser();
+  const title = str(fd, "title").slice(0, 80);
+  const times = cleanTimes(fd.getAll("time"));
+  if (!title || times.length === 0) return;
+  await db.insert(personalReminders).values({ ownerId: user.id, title, times });
+  revalidatePath("/more/reminders");
+}
+
+export async function updatePersonalReminder(fd: FormData) {
+  const user = await requireUser();
+  const title = str(fd, "title").slice(0, 80);
+  const times = cleanTimes(fd.getAll("time"));
+  if (!title || times.length === 0) return;
+  await db
+    .update(personalReminders)
+    .set({ title, times, enabled: fd.get("enabled") === "on" })
+    .where(and(eq(personalReminders.id, str(fd, "id")), eq(personalReminders.ownerId, user.id)));
+  revalidatePath("/", "layout");
+}
+
+export async function deletePersonalReminder(fd: FormData) {
+  const user = await requireUser();
+  await db.delete(personalReminders).where(and(eq(personalReminders.id, str(fd, "id")), eq(personalReminders.ownerId, user.id)));
+  revalidatePath("/", "layout");
+}
+
+/** «Готово» — убрать красную плашку. */
+export async function markPersonalReminderDone(fd: FormData) {
+  const user = await requireUser();
+  const id = str(fd, "id");
+  const [own] = await db
+    .select({ id: personalReminders.id })
+    .from(personalReminders)
+    .where(and(eq(personalReminders.id, id), eq(personalReminders.ownerId, user.id)))
+    .limit(1);
+  if (!own) return;
+  await db
+    .update(personalReminderSends)
+    .set({ doneAt: new Date() })
+    .where(and(eq(personalReminderSends.reminderId, id), eq(personalReminderSends.slot, str(fd, "slot"))));
   revalidatePath("/", "layout");
 }

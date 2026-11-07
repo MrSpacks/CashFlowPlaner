@@ -14,7 +14,7 @@ function configure() {
   return true;
 }
 
-export type PushPayload = { title: string; body: string; url?: string; tag?: string };
+export type PushPayload = { title: string; body: string; url?: string; tag?: string; sticky?: boolean };
 
 /**
  * Уведомить пользователя: запись в центр уведомлений приложения (store) + push на все его устройства.

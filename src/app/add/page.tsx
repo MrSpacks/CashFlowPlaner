@@ -14,6 +14,7 @@ export default async function AddPage() {
     { item: t.add.income, href: "/more/income" },
     { item: t.add.oneTime, href: "/more/income#one-time" },
     { item: t.add.fixed, href: "/more/expenses" },
+    { item: t.add.reminder, href: "/more/reminders" },
   ];
 
   return (

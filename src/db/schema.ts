@@ -391,3 +391,30 @@ export const notifications = pgTable(
   },
   (t) => [index("notifications_user_created_idx").on(t.userId, t.createdAt)],
 );
+
+// ---------- личные напоминания (лекарства и т.п.) ----------
+/** Напоминание в заданные часы каждый день, push на телефон. times — "HH:MM" по часовому поясу владельца. */
+export const personalReminders = pgTable(
+  "personal_reminders",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: text("owner_id").notNull(),
+    title: text("title").notNull(),
+    times: text("times").array().notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    createdAt: created(),
+  },
+  (t) => [index("personal_reminders_owner_idx").on(t.ownerId)],
+);
+
+/** Отправленные напоминания: slot = "YYYY-MM-DD HH:MM" (местное время). done_at — человек отметил «сделано». */
+export const personalReminderSends = pgTable(
+  "personal_reminder_sends",
+  {
+    reminderId: uuid("reminder_id").notNull().references(() => personalReminders.id, { onDelete: "cascade" }),
+    slot: text("slot").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).defaultNow().notNull(),
+    doneAt: timestamp("done_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.reminderId, t.slot] })],
+);

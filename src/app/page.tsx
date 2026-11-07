@@ -7,6 +7,8 @@ import { requireUser } from "@/lib/auth";
 import { buildUserForecast } from "@/lib/finance";
 import { formatMoney, monthLabel, todayISO } from "@/lib/forecast";
 import { getReminders } from "@/lib/reminders";
+import { pendingReminders } from "@/lib/personalReminders";
+import { markPersonalReminderDone } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -19,14 +21,40 @@ const stateStyle = {
 export default async function ForecastPage() {
   const user = await requireUser();
   const { t, intl } = await getI18n();
-  const [f, reminders] = await Promise.all([buildUserForecast(user.id), getReminders(user.id, todayISO(), 7, 7)]);
+  const [f, reminders, pending] = await Promise.all([
+    buildUserForecast(user.id),
+    getReminders(user.id, todayISO(), 7, 7),
+    pendingReminders(user.id),
+  ]);
+  const pendingBox = pending.length > 0 && (
+    <div className="mx-4 mb-4 space-y-2">
+      {pending.map((p) => (
+        <form
+          key={`${p.reminderId}-${p.slot}`}
+          action={markPersonalReminderDone}
+          className="flex items-center justify-between gap-3 rounded-2xl bg-[#e11d48] p-4 text-[#fff] shadow-lg"
+        >
+          <input type="hidden" name="id" value={p.reminderId} />
+          <input type="hidden" name="slot" value={p.slot} />
+          <div className="min-w-0">
+            <p className="truncate text-lg font-bold">⏰ {p.title}</p>
+            <p className="text-sm text-[#ffe4e6]">
+              {t.prm.due} · {p.slot.slice(11)}
+            </p>
+          </div>
+          <button className="shrink-0 rounded-xl bg-[#fff] px-4 py-2 font-semibold text-[#be123c]">{t.prm.done}</button>
+        </form>
+      ))}
+    </div>
+  );
   const money = (n: number) => formatMoney(n, f.base, intl);
 
   if (f.isEmpty) {
     return (
       <>
         <PageHeader title={t.forecast.title} subtitle={t.forecast.subtitle} />
-        <IncomingInvites userId={user.id} t={t.sh} />
+        {pendingBox}
+      <IncomingInvites userId={user.id} t={t.sh} />
         <div className="px-4">
           <Card>
             <h2 className="text-lg font-semibold">{t.forecast.setupTitle}</h2>
@@ -52,6 +80,7 @@ export default async function ForecastPage() {
             : t.forecast.subtitle
         }
       />
+      {pendingBox}
       <IncomingInvites userId={user.id} t={t.sh} />
       {reminders.length > 0 && (
         <div className="mx-4 mb-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200">
