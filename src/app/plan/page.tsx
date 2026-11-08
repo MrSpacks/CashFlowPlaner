@@ -11,6 +11,9 @@ import { canUseDailyPlan, DATE_RE, getDailyPlan, planProgress, recentDailyPlans,
 
 export const dynamic = "force-dynamic";
 
+/** Документ «План финансовой независимости» с вкладкой «План развития» (Claude). */
+const PLAN_DOC_URL = "https://claude.ai/artifact/GLWcUGGgAU2GQM2gQQ4kiT#102f3910-8daa";
+
 const fmt = (iso: string, intl: string, opts: Intl.DateTimeFormatOptions) =>
   new Intl.DateTimeFormat(intl, { timeZone: "UTC", ...opts }).format(new Date(`${iso}T12:00:00Z`));
 
@@ -105,6 +108,16 @@ export default async function DailyPlanPage({ searchParams }: { searchParams: Pr
             </form>
           </Card>
         )}
+
+        <a
+          href={PLAN_DOC_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between gap-3 rounded-2xl bg-white p-4 text-sm shadow-sm ring-1 ring-slate-200 active:bg-slate-50"
+        >
+          <span className="font-medium">📄 {t.dp.planDoc}</span>
+          <span className="text-emerald-700">↗</span>
+        </a>
 
         {recent.length > 0 && (
           <div>

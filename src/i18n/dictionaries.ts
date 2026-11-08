@@ -330,6 +330,7 @@ const ru = {
     history: "Последние дни",
     pushTitle: "📋 План дня готов",
     home: (done: number, total: number) => `План дня: ${done} из ${total}`,
+    planDoc: "План развития (документ)",
   },
   rm: {
     title: "Напоминания",
@@ -685,6 +686,7 @@ const cs: Dict = {
     history: "Poslední dny",
     pushTitle: "📋 Plán dne je hotový",
     home: (done: number, total: number) => `Plán dne: ${done} z ${total}`,
+    planDoc: "Plán rozvoje (dokument)",
   },
   rm: {
     title: "Připomínky",
@@ -1038,6 +1040,7 @@ const en: Dict = {
     history: "Recent days",
     pushTitle: "📋 Your daily plan is ready",
     home: (done: number, total: number) => `Daily plan: ${done} of ${total}`,
+    planDoc: "Development plan (document)",
   },
   rm: {
     title: "Reminders",
