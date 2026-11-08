@@ -9,6 +9,8 @@ import {
   authUser,
   balanceSnapshots,
   calendarInvites,
+  dailyPlans,
+  type DailyFeedback,
   calendarMembers,
   calendars,
   conversations,
@@ -35,6 +37,7 @@ import { getI18n } from "@/i18n/server";
 import { auth, requireUser } from "@/lib/auth";
 import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, getEditableEvent } from "@/lib/events";
 import { cleanTimes } from "@/lib/personalReminders";
+import { canUseDailyPlan } from "@/lib/dailyPlan";
 import { CURRENCIES, parseAmount, todayISO } from "@/lib/forecast";
 import { getConversationForUser, markRead, recipientsOf } from "@/lib/chat";
 import { friendStatus, USERNAME_RE } from "@/lib/people";
@@ -911,4 +914,40 @@ export async function markPersonalReminderDone(fd: FormData) {
     .set({ doneAt: new Date() })
     .where(and(eq(personalReminderSends.reminderId, id), eq(personalReminderSends.slot, str(fd, "slot"))));
   revalidatePath("/", "layout");
+}
+
+// ---------- план дня (только для владельца) ----------
+const TASK_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+
+/** Отметить задачу плана сделанной / несделанной. Вызывается из клиентского компонента. */
+export async function toggleDailyTask(planId: string, taskId: string, value: boolean) {
+  const user = await requireUser();
+  if (!canUseDailyPlan(user.id) || !TASK_ID_RE.test(taskId)) return;
+  await db
+    .update(dailyPlans)
+    .set({ done: sql`${dailyPlans.done} || ${JSON.stringify({ [taskId]: !!value })}::jsonb` })
+    .where(and(eq(dailyPlans.id, planId), eq(dailyPlans.ownerId, user.id)));
+  revalidatePath("/plan");
+  revalidatePath("/");
+}
+
+/** Вечерний итог дня: энергия, что получилось, что помешало, страхи, другое. */
+export async function saveDailyFeedback(fd: FormData) {
+  const user = await requireUser();
+  if (!canUseDailyPlan(user.id)) return;
+  const id = str(fd, "id");
+  const energyRaw = Number(str(fd, "energy"));
+  const cut = (k: string) => str(fd, k).slice(0, 4000);
+  const feedback: DailyFeedback = {
+    energy: energyRaw >= 1 && energyRaw <= 5 ? Math.round(energyRaw) : null,
+    wins: cut("wins"),
+    blockers: cut("blockers"),
+    fears: cut("fears"),
+    other: cut("other"),
+  };
+  await db
+    .update(dailyPlans)
+    .set({ feedback, submittedAt: new Date() })
+    .where(and(eq(dailyPlans.id, id), eq(dailyPlans.ownerId, user.id)));
+  revalidatePath("/plan");
 }

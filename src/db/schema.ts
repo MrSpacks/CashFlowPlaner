@@ -13,6 +13,7 @@ import {
   index,
   uniqueIndex,
   customType,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 /*
@@ -417,4 +418,29 @@ export const personalReminderSends = pgTable(
     doneAt: timestamp("done_at", { withTimezone: true }),
   },
   (t) => [primaryKey({ columns: [t.reminderId, t.slot] })],
+);
+
+// ---------- план дня ----------
+export type DailyTask = { id: string; title: string; area?: string; minutes?: number; why?: string };
+export type DailyFeedback = { wins?: string; blockers?: string; fears?: string; other?: string; energy?: number | null };
+
+/** План дня: пишет утренняя задача Claude, человек отмечает done и вечером пишет feedback. */
+export const dailyPlans = pgTable(
+  "daily_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: text("owner_id").notNull(),
+    date: date("date").notNull(),
+    headline: text("headline"),
+    focus: text("focus"),
+    note: text("note"),
+    tasks: jsonb("tasks").$type<DailyTask[]>().default([]).notNull(),
+    done: jsonb("done").$type<Record<string, boolean>>().default({}).notNull(),
+    feedback: jsonb("feedback").$type<DailyFeedback>(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow().notNull(),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    createdAt: created(),
+  },
+  (t) => [uniqueIndex("daily_plans_owner_date_idx").on(t.ownerId, t.date)],
 );

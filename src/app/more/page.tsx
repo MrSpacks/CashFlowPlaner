@@ -10,6 +10,7 @@ import { getDb } from "@/db";
 import { LANGUAGE_NAMES, LOCALES } from "@/i18n/dictionaries";
 import { getI18n, getTheme } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
+import { canUseDailyPlan } from "@/lib/dailyPlan";
 import { getProfile } from "@/lib/finance";
 import { avatarUrl, countIncomingRequests, ensureUsername } from "@/lib/people";
 import Link from "next/link";
@@ -56,6 +57,7 @@ export default async function MorePage() {
 
       <div className="mx-4 mb-4">
         <ListGroup>
+          {canUseDailyPlan(user.id) && <li><ListRow href="/plan" icon="📋" title={t.dp.menu} /></li>}
           <li><ListRow href="/people" icon="👥" title={t.fr.title} subtitle={requests ? `${t.fr.requests}: ${requests}` : undefined} /></li>
           <li><ListRow href="/chats" icon="💬" title={t.ch.title} /></li>
           <li><ListRow href="/ideas" icon="💡" title={t.ideas.title} /></li>
