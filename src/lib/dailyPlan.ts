@@ -49,11 +49,15 @@ export function planProgress(plan: { tasks: { id: string }[]; done: Record<strin
   return { total, done };
 }
 
-/** Новые планы за последние 12 часов, о которых ещё не было push. */
+/**
+ * Планы, о которых пора отправить push: generated_at уже наступил (план, записанный ночью,
+ * ставит generated_at на утро) и не старше 12 часов, push ещё не было.
+ */
 export async function plansToNotify() {
-  const since = new Date(Date.now() - 12 * 3600 * 1000);
+  const now = new Date();
+  const since = new Date(now.getTime() - 12 * 3600 * 1000);
   return db
     .select()
     .from(dailyPlans)
-    .where(and(isNull(dailyPlans.notifiedAt), gt(dailyPlans.generatedAt, since)));
+    .where(and(isNull(dailyPlans.notifiedAt), gt(dailyPlans.generatedAt, since), lte(dailyPlans.generatedAt, now)));
 }
