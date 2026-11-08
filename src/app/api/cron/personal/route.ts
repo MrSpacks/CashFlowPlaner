@@ -1,5 +1,7 @@
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { personalReminderSends } from "@/db/schema";
+import { dailyPlans, personalReminderSends } from "@/db/schema";
+import { canUseDailyPlan, plansToNotify } from "@/lib/dailyPlan";
 import { DICTIONARIES, isLocale } from "@/i18n/dictionaries";
 import { dueReminderSlots } from "@/lib/personalReminders";
 import { sendPushToUser } from "@/lib/push";
@@ -34,5 +36,30 @@ export async function GET() {
     );
     sent++;
   }
-  return Response.json({ due: due.length, sent });
+
+  // План дня: о новом плане — один push (тот же 5-минутный пинг).
+  let plans = 0;
+  for (const p of await plansToNotify()) {
+    const [claimed] = await db
+      .update(dailyPlans)
+      .set({ notifiedAt: new Date() })
+      .where(and(eq(dailyPlans.id, p.id), isNull(dailyPlans.notifiedAt)))
+      .returning({ id: dailyPlans.id });
+    if (!claimed || !canUseDailyPlan(p.ownerId)) continue;
+    await sendPushToUser(
+      p.ownerId,
+      (loc) => {
+        const t = DICTIONARIES[isLocale(loc) ? loc : "en"].dp;
+        return {
+          title: t.pushTitle,
+          body: [p.headline, p.focus].filter(Boolean).join(" — ") || t.title,
+          url: "/plan",
+          tag: `dp-${p.date}`,
+        };
+      },
+      { store: false },
+    );
+    plans++;
+  }
+  return Response.json({ due: due.length, sent, plans });
 }

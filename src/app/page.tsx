@@ -9,6 +9,7 @@ import { formatMoney, monthLabel, todayISO } from "@/lib/forecast";
 import { getReminders } from "@/lib/reminders";
 import { pendingReminders } from "@/lib/personalReminders";
 import { markPersonalReminderDone } from "@/app/actions";
+import { canUseDailyPlan, getDailyPlan, planProgress, userToday } from "@/lib/dailyPlan";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,17 @@ export default async function ForecastPage() {
     getReminders(user.id, todayISO(), 7, 7),
     pendingReminders(user.id),
   ]);
+  const plan = canUseDailyPlan(user.id) ? await getDailyPlan(user.id, await userToday(user.id)) : null;
+  const planProg = plan ? planProgress(plan) : null;
+  const planBox = plan && planProg && (
+    <Link href="/plan" className="mx-4 mb-4 flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-emerald-200 active:bg-slate-50">
+      <span className="min-w-0">
+        <span className="block font-semibold">📋 {t.dp.home(planProg.done, planProg.total)}</span>
+        {plan.focus && <span className="block truncate text-sm text-slate-500">{plan.focus}</span>}
+      </span>
+      <span className="text-emerald-700">›</span>
+    </Link>
+  );
   const pendingBox = pending.length > 0 && (
     <div className="mx-4 mb-4 space-y-2">
       {pending.map((p) => (
@@ -54,6 +66,7 @@ export default async function ForecastPage() {
       <>
         <PageHeader title={t.forecast.title} subtitle={t.forecast.subtitle} />
         {pendingBox}
+        {planBox}
       <IncomingInvites userId={user.id} t={t.sh} />
         <div className="px-4">
           <Card>
@@ -81,6 +94,7 @@ export default async function ForecastPage() {
         }
       />
       {pendingBox}
+      {planBox}
       <IncomingInvites userId={user.id} t={t.sh} />
       {reminders.length > 0 && (
         <div className="mx-4 mb-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200">
