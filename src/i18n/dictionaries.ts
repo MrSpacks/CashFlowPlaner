@@ -331,6 +331,8 @@ const ru = {
     pushTitle: "📋 План дня готов",
     home: (done: number, total: number) => `План дня: ${done} из ${total}`,
     planDoc: "План развития (документ)",
+    eveningTitle: "📋 План дня не выполнен",
+    eveningBody: (done: number, total: number) => `Сделано ${done} из ${total}. Ещё есть время — или напишите вечерний итог: что помешало.`,
   },
   rm: {
     title: "Напоминания",
@@ -687,6 +689,8 @@ const cs: Dict = {
     pushTitle: "📋 Plán dne je hotový",
     home: (done: number, total: number) => `Plán dne: ${done} z ${total}`,
     planDoc: "Plán rozvoje (dokument)",
+    eveningTitle: "📋 Plán dne není hotový",
+    eveningBody: (done: number, total: number) => `Hotovo ${done} z ${total}. Ještě je čas — nebo napište večerní shrnutí: co bránilo.`,
   },
   rm: {
     title: "Připomínky",
@@ -1041,6 +1045,8 @@ const en: Dict = {
     pushTitle: "📋 Your daily plan is ready",
     home: (done: number, total: number) => `Daily plan: ${done} of ${total}`,
     planDoc: "Development plan (document)",
+    eveningTitle: "📋 Daily plan not finished",
+    eveningBody: (done: number, total: number) => `Done ${done} of ${total}. There's still time — or write the evening summary: what got in the way.`,
   },
   rm: {
     title: "Reminders",

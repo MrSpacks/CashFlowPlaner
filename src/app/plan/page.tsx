@@ -122,23 +122,28 @@ export default async function DailyPlanPage({ searchParams }: { searchParams: Pr
         {recent.length > 0 && (
           <div>
             <h2 className="mb-2 font-semibold">{t.dp.history}</h2>
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1">
               {recent.map((p) => {
                 const { done, total } = planProgress(p);
                 const pct = total ? Math.round((done / total) * 100) : 0;
+                const full = total > 0 && done === total;
                 const active = p.date === date;
+                const bar = full ? "bg-emerald-500" : done > 0 ? "bg-amber-500" : "bg-slate-300";
                 return (
                   <Link
                     key={p.id}
                     href={p.date === today ? "/plan" : `/plan?date=${p.date}`}
-                    className={`flex w-14 shrink-0 flex-col items-center gap-1 rounded-xl bg-white px-1 py-2 ring-1 ${
+                    className={`flex w-16 shrink-0 flex-col items-center gap-1 rounded-2xl bg-white px-2 py-2.5 ring-1 ${
                       active ? "ring-2 ring-emerald-500" : "ring-slate-200"
                     }`}
                   >
                     <span className="text-[11px] text-slate-500">{fmt(p.date, intl, { weekday: "short" })}</span>
-                    <span className="text-sm font-semibold tabular-nums">{Number(p.date.slice(8, 10))}</span>
-                    <span className="h-1 w-full overflow-hidden rounded-full bg-slate-200">
-                      <span className="block h-full bg-emerald-500" style={{ width: `${pct}%` }} />
+                    <span className="text-lg leading-none font-semibold tabular-nums">{Number(p.date.slice(8, 10))}</span>
+                    <span className={`text-[11px] tabular-nums ${full ? "text-emerald-600" : "text-slate-500"}`}>
+                      {full ? "✓" : `${done}/${total}`}
+                    </span>
+                    <span className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                      <span className={`block h-full rounded-full ${bar}`} style={{ width: `${Math.max(pct, total ? 4 : 0)}%` }} />
                     </span>
                   </Link>
                 );

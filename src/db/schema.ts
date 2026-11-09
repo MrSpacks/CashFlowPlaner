@@ -440,6 +440,8 @@ export const dailyPlans = pgTable(
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     generatedAt: timestamp("generated_at", { withTimezone: true }).defaultNow().notNull(),
     notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    /** Вечерний push «план не выполнен» уже отправлен. */
+    eveningNotifiedAt: timestamp("evening_notified_at", { withTimezone: true }),
     createdAt: created(),
   },
   (t) => [uniqueIndex("daily_plans_owner_date_idx").on(t.ownerId, t.date)],

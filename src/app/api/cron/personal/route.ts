@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { dailyPlans, personalReminderSends } from "@/db/schema";
-import { canUseDailyPlan, plansToNotify } from "@/lib/dailyPlan";
+import { canUseDailyPlan, dailyPlanZones, EVENING_TIME, plansToNotify, plansUnfinishedEvening } from "@/lib/dailyPlan";
 import { DICTIONARIES, isLocale } from "@/i18n/dictionaries";
 import { dueReminderSlots, reminderSchedule } from "@/lib/personalReminders";
 import { sendPushToUser } from "@/lib/push";
@@ -17,8 +17,16 @@ export async function GET(req: Request) {
   // ?schedule=1 — только расписание (часовой пояс + время), чтобы планировщик не будил базу каждую минуту.
   if (new URL(req.url).searchParams.get("schedule")) {
     const plans = await plansToNotify();
+    const reminders = await reminderSchedule();
+    // Вечерняя проверка «Плана дня» — как ещё одно «время» в расписании.
+    for (const tz of await dailyPlanZones()) {
+      const r = reminders.find((x) => x.tz === tz);
+      if (r) {
+        if (!r.times.includes(EVENING_TIME)) r.times.push(EVENING_TIME);
+      } else reminders.push({ tz, times: [EVENING_TIME] });
+    }
     return Response.json({
-      reminders: await reminderSchedule(),
+      reminders,
       plans: plans.filter((p) => canUseDailyPlan(p.ownerId)).map((p) => p.generatedAt),
     });
   }
@@ -68,5 +76,20 @@ export async function GET(req: Request) {
     );
     plans++;
   }
-  return Response.json({ due: due.length, sent, plans });
+  // Вечер: план на сегодня не выполнен — один push.
+  let evening = 0;
+  for (const p of await plansUnfinishedEvening()) {
+    const [claimed] = await db
+      .update(dailyPlans)
+      .set({ eveningNotifiedAt: new Date() })
+      .where(and(eq(dailyPlans.id, p.id), isNull(dailyPlans.eveningNotifiedAt)))
+      .returning({ id: dailyPlans.id });
+    if (!claimed) continue;
+    await sendPushToUser(p.ownerId, (loc) => {
+      const t = DICTIONARIES[isLocale(loc) ? loc : "en"].dp;
+      return { title: t.eveningTitle, body: t.eveningBody(p.doneCount, p.total), url: "/plan", tag: `dp-evening-${p.date}` };
+    });
+    evening++;
+  }
+  return Response.json({ due: due.length, sent, plans, evening });
 }
