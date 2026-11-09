@@ -28,6 +28,7 @@ import {
   payments,
   personalReminders,
   personalReminderSends,
+  investmentAccounts,
   profiles,
   pushSubscriptions,
   settlements,
@@ -37,6 +38,7 @@ import { getI18n } from "@/i18n/server";
 import { auth, requireUser } from "@/lib/auth";
 import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, getEditableEvent } from "@/lib/events";
 import { cleanTimes } from "@/lib/personalReminders";
+import { canUseInvest, encrypt, refreshSnapshot } from "@/lib/invest";
 import { canUseDailyPlan } from "@/lib/dailyPlan";
 import { CURRENCIES, parseAmount, todayISO } from "@/lib/forecast";
 import { getConversationForUser, markRead, recipientsOf } from "@/lib/chat";
@@ -950,4 +952,34 @@ export async function saveDailyFeedback(fd: FormData) {
     .set({ feedback, submittedAt: new Date() })
     .where(and(eq(dailyPlans.id, id), eq(dailyPlans.ownerId, user.id)));
   revalidatePath("/plan");
+}
+
+// ---------- инвестиции (Trading 212) ----------
+export async function connectTrading212(fd: FormData) {
+  const user = await requireUser();
+  if (!canUseInvest(user.id)) return;
+  const key = str(fd, "key");
+  const secret = str(fd, "secret");
+  const env = str(fd, "env") === "demo" ? "demo" : "live";
+  if (!key || !secret) return;
+  const row = { keyEnc: encrypt(key), secretEnc: encrypt(secret), env, lastError: null };
+  await db
+    .insert(investmentAccounts)
+    .values({ ownerId: user.id, ...row })
+    .onConflictDoUpdate({ target: investmentAccounts.ownerId, set: row });
+  await refreshSnapshot(user.id, 0);
+  revalidatePath("/", "layout");
+}
+
+export async function refreshInvestments() {
+  const user = await requireUser();
+  if (!canUseInvest(user.id)) return;
+  await refreshSnapshot(user.id, 0.2);
+  revalidatePath("/", "layout");
+}
+
+export async function disconnectTrading212() {
+  const user = await requireUser();
+  await db.delete(investmentAccounts).where(eq(investmentAccounts.ownerId, user.id));
+  revalidatePath("/", "layout");
 }

@@ -11,6 +11,7 @@ import { LANGUAGE_NAMES, LOCALES } from "@/i18n/dictionaries";
 import { getI18n, getTheme } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { canUseDailyPlan } from "@/lib/dailyPlan";
+import { canUseInvest } from "@/lib/invest";
 import { getProfile } from "@/lib/finance";
 import { avatarUrl, countIncomingRequests, ensureUsername } from "@/lib/people";
 import Link from "next/link";
@@ -68,6 +69,7 @@ export default async function MorePage() {
       <div className="mx-4">
         <ListGroup>
           <li><ListRow href="/more/balance" icon="🏦" title={t.more.balance} /></li>
+          {canUseInvest(user.id) && <li><ListRow href="/more/invest" icon="📈" title={t.inv.title} /></li>}
           <li><ListRow href="/more/income" icon="💵" title={t.more.incomes} /></li>
           <li><ListRow href="/more/expenses" icon="🔁" title={t.more.fixed} /></li>
           <li><ListRow href="/more/sharing" icon="🔗" title={t.sh.title} /></li>

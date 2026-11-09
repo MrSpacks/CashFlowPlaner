@@ -446,3 +446,44 @@ export const dailyPlans = pgTable(
   },
   (t) => [uniqueIndex("daily_plans_owner_date_idx").on(t.ownerId, t.date)],
 );
+
+// ---------- инвестиции (Trading 212, только владелец) ----------
+/** Подключение брокера. Ключи зашифрованы (AES-256-GCM), в открытом виде не хранятся. */
+export const investmentAccounts = pgTable("investment_accounts", {
+  ownerId: text("owner_id").primaryKey(),
+  provider: text("provider").default("trading212").notNull(),
+  env: text("env").default("live").notNull(),
+  keyEnc: text("key_enc").notNull(),
+  secretEnc: text("secret_enc").notNull(),
+  lastError: text("last_error"),
+  createdAt: created(),
+});
+
+export type InvestmentPosition = {
+  ticker: string;
+  name: string;
+  quantity: number;
+  currency: string;
+  value: number;
+  cost: number;
+  pl: number;
+};
+
+/** Снимок портфеля: итоги в валюте счёта + позиции. Читает «План дня». */
+export const investmentSnapshots = pgTable(
+  "investment_snapshots",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: text("owner_id").notNull(),
+    takenAt: timestamp("taken_at", { withTimezone: true }).defaultNow().notNull(),
+    currency: char("currency", { length: 3 }).notNull(),
+    totalValue: numeric("total_value", { precision: 16, scale: 2 }).notNull(),
+    cash: numeric("cash", { precision: 16, scale: 2 }).notNull(),
+    investedValue: numeric("invested_value", { precision: 16, scale: 2 }).notNull(),
+    totalCost: numeric("total_cost", { precision: 16, scale: 2 }).notNull(),
+    unrealizedPl: numeric("unrealized_pl", { precision: 16, scale: 2 }).notNull(),
+    realizedPl: numeric("realized_pl", { precision: 16, scale: 2 }).notNull(),
+    positions: jsonb("positions").$type<InvestmentPosition[]>().default([]).notNull(),
+  },
+  (t) => [index("investment_snapshots_owner_idx").on(t.ownerId, t.takenAt)],
+);

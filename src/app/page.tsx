@@ -8,6 +8,7 @@ import { buildUserForecast } from "@/lib/finance";
 import { formatMoney, monthLabel, todayISO } from "@/lib/forecast";
 import { getReminders } from "@/lib/reminders";
 import { canUseDailyPlan, getDailyPlan, planProgress, userToday } from "@/lib/dailyPlan";
+import { canUseInvest, latestSnapshot } from "@/lib/invest";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,20 @@ export default async function ForecastPage() {
       <span className="text-emerald-700">›</span>
     </Link>
   );
+  const inv = canUseInvest(user.id) ? await latestSnapshot(user.id) : null;
+  const invBox = inv && (
+    <Link href="/more/invest" className="mx-4 mb-4 flex items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 active:bg-slate-50">
+      <span className="min-w-0">
+        <span className="block text-sm text-slate-500">📈 {t.inv.home}</span>
+        <span className="block text-lg font-semibold tabular-nums">{formatMoney(Number(inv.totalValue), inv.currency, intl)}</span>
+      </span>
+      <span className={`text-sm font-medium tabular-nums ${Number(inv.unrealizedPl) < 0 ? "text-rose-600" : "text-emerald-700"}`}>
+        {Number(inv.unrealizedPl) >= 0 ? "+" : ""}
+        {formatMoney(Number(inv.unrealizedPl), inv.currency, intl)}
+        {Number(inv.totalCost) > 0 && ` · ${((Number(inv.unrealizedPl) / Number(inv.totalCost)) * 100).toFixed(1)} %`}
+      </span>
+    </Link>
+  );
   const money = (n: number) => formatMoney(n, f.base, intl);
 
   if (f.isEmpty) {
@@ -39,6 +54,7 @@ export default async function ForecastPage() {
       <>
         <PageHeader title={t.forecast.title} subtitle={t.forecast.subtitle} />
         {planBox}
+      {invBox}
       <IncomingInvites userId={user.id} t={t.sh} />
         <div className="px-4">
           <Card>
@@ -66,6 +82,7 @@ export default async function ForecastPage() {
         }
       />
       {planBox}
+      {invBox}
       <IncomingInvites userId={user.id} t={t.sh} />
       {reminders.length > 0 && (
         <div className="mx-4 mb-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200">

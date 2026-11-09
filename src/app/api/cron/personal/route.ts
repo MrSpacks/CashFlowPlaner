@@ -3,7 +3,8 @@ import { db } from "@/db";
 import { dailyPlans, personalReminderSends } from "@/db/schema";
 import { canUseDailyPlan, dailyPlanZones, EVENING_TIME, plansToNotify, plansUnfinishedEvening } from "@/lib/dailyPlan";
 import { DICTIONARIES, isLocale } from "@/i18n/dictionaries";
-import { dueReminderSlots, reminderSchedule } from "@/lib/personalReminders";
+import { INVEST_MORNING_TIME, refreshAllMorning } from "@/lib/invest";
+import { dueReminderSlots, localNow, reminderSchedule } from "@/lib/personalReminders";
 import { sendPushToUser } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,11 @@ export async function GET(req: Request) {
   if (new URL(req.url).searchParams.get("schedule")) {
     const plans = await plansToNotify();
     const reminders = await reminderSchedule();
-    // Вечерняя проверка «Плана дня» — как ещё одно «время» в расписании.
+    // Утреннее обновление портфеля (до «Плана дня») и вечерняя проверка плана — как ещё «времена» в расписании.
+    const prague = reminders.find((x) => x.tz === "Europe/Prague");
+    if (prague) {
+      if (!prague.times.includes(INVEST_MORNING_TIME)) prague.times.push(INVEST_MORNING_TIME);
+    } else reminders.push({ tz: "Europe/Prague", times: [INVEST_MORNING_TIME] });
     for (const tz of await dailyPlanZones()) {
       const r = reminders.find((x) => x.tz === tz);
       if (r) {
@@ -91,5 +96,8 @@ export async function GET(req: Request) {
     });
     evening++;
   }
-  return Response.json({ due: due.length, sent, plans, evening });
+  // Портфель Trading 212 — утром, чтобы «План дня» видел свежие цифры.
+  const hm = localNow("Europe/Prague").hm;
+  const invest = hm >= INVEST_MORNING_TIME && hm < "06:20" ? await refreshAllMorning() : 0;
+  return Response.json({ due: due.length, sent, plans, evening, invest });
 }
