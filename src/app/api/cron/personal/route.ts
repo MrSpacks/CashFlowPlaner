@@ -40,7 +40,6 @@ export async function GET(req: Request) {
         tag: `prm-${d.reminder.id}`,
         sticky: true,
       }),
-      { store: false },
     );
     sent++;
   }

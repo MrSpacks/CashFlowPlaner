@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 const WARM_KEY = "cfp-warm-at";
 
@@ -14,6 +14,24 @@ async function post(msg: unknown) {
 export default function RegisterSW({ loggedIn }: { loggedIn: boolean }) {
   const pathname = usePathname();
   const search = useSearchParams();
+  const router = useRouter();
+
+  // Пришёл push, а приложение открыто — обновить экран (красная плашка, колокольчик).
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const onMsg = (e: MessageEvent) => {
+      if (e.data?.type === "push") router.refresh();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") router.refresh();
+    };
+    navigator.serviceWorker.addEventListener("message", onMsg);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", onMsg);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [router]);
 
   // Регистрация + прогрев главных экранов (не чаще раза в 3 часа), очистка после выхода.
   useEffect(() => {

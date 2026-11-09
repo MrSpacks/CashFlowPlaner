@@ -4,6 +4,7 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import NetworkActivity from "@/components/NetworkActivity";
 import OfflineSync from "@/components/OfflineSync";
+import PendingReminders from "@/components/PendingReminders";
 import RegisterSW from "@/components/RegisterSW";
 import { getI18n, getTheme } from "@/i18n/server";
 import { and, eq, isNull, sql } from "drizzle-orm";
@@ -87,7 +88,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               }}
             />
           )}
-          <main className="mx-auto min-h-dvh max-w-xl pb-28 lg:max-w-5xl lg:px-6 lg:pt-4 lg:pb-12">{children}</main>
+          <main className="mx-auto min-h-dvh max-w-xl pb-28 lg:max-w-5xl lg:px-6 lg:pt-4 lg:pb-12">
+            {session && <PendingReminders userId={session.user.id} t={t.prm} />}
+            {children}
+          </main>
         </div>
         <BottomNav labels={t.nav} badges={badges} me={me} />
         <Suspense fallback={null}>
