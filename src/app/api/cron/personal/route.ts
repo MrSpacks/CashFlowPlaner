@@ -15,7 +15,13 @@ export const maxDuration = 60;
  */
 export async function GET(req: Request) {
   // ?schedule=1 — только расписание (часовой пояс + время), чтобы планировщик не будил базу каждую минуту.
-  if (new URL(req.url).searchParams.get("schedule")) return Response.json(await reminderSchedule());
+  if (new URL(req.url).searchParams.get("schedule")) {
+    const plans = await plansToNotify();
+    return Response.json({
+      reminders: await reminderSchedule(),
+      plans: plans.filter((p) => canUseDailyPlan(p.ownerId)).map((p) => p.generatedAt),
+    });
+  }
   const due = await dueReminderSlots();
   let sent = 0;
   for (const d of due) {
@@ -39,7 +45,7 @@ export async function GET(req: Request) {
     sent++;
   }
 
-  // План дня: о новом плане — один push (тот же 5-минутный пинг).
+  // План дня: о новом плане — один push (тот же пинг планировщика).
   let plans = 0;
   for (const p of await plansToNotify()) {
     const [claimed] = await db
