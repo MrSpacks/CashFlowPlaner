@@ -1,5 +1,6 @@
 import Link from "next/link";
 import EventList from "@/components/EventList";
+import PastEvents from "@/components/PastEvents";
 import PageHeader from "@/components/PageHeader";
 import { BackLink, btnCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
@@ -33,11 +34,7 @@ export default async function EventsPage() {
           <h2 className="mb-2 text-sm font-medium text-slate-500">{t.ev.upcoming}</h2>
           {upcoming.length ? <EventList events={upcoming} t={t.ev} intl={intl} /> : <p className="text-sm text-slate-500">{t.ev.noEvents}</p>}
         </section>
-        {past.length > 0 && (
-          <section className="opacity-70">
-            <EventList events={past} t={t.ev} intl={intl} />
-          </section>
-        )}
+        <PastEvents events={past.sort(byDateTime).reverse()} t={t.ev} intl={intl} />
         <Link href="/events/new" className={`${btnCls} w-full`}>＋ {t.ev.newTitle}</Link>
       </div>
     </>

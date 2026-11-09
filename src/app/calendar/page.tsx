@@ -1,5 +1,6 @@
 import Link from "next/link";
 import EventList, { type EventSummary } from "@/components/EventList";
+import PastEvents, { isPastEvent } from "@/components/PastEvents";
 import PageHeader from "@/components/PageHeader";
 import { btnCls, cardCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
@@ -151,7 +152,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           </span>
         </div>
         {listed.length ? (
-          <EventList events={listed} t={t.ev} intl={intl} />
+          selDay ? (
+            <EventList events={listed} t={t.ev} intl={intl} />
+          ) : (
+            <div className="space-y-2">
+              <PastEvents events={listed.filter((e) => isPastEvent(e, todayISO()))} t={t.ev} intl={intl} />
+              {listed.some((e) => !isPastEvent(e, todayISO())) && (
+                <EventList events={listed.filter((e) => !isPastEvent(e, todayISO()))} t={t.ev} intl={intl} />
+              )}
+            </div>
+          )
         ) : (
           <p className="text-center text-sm text-slate-500">{t.calendar.empty}</p>
         )}
