@@ -66,3 +66,20 @@ export async function pendingReminders(userId: string) {
     .orderBy(desc(personalReminderSends.sentAt));
   return sends.map((s) => ({ ...s, title: mine.find((m) => m.id === s.reminderId)?.title ?? "" }));
 }
+
+/** Сводное расписание для внешнего планировщика: [{ tz, times }] по включённым напоминаниям. */
+export async function reminderSchedule() {
+  const rows = await db
+    .select({ times: personalReminders.times, tz: profiles.timezone })
+    .from(personalReminders)
+    .leftJoin(profiles, eq(profiles.userId, personalReminders.ownerId))
+    .where(eq(personalReminders.enabled, true));
+  const byTz = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const tz = r.tz ?? "Europe/Prague";
+    const set = byTz.get(tz) ?? new Set<string>();
+    r.times.forEach((t) => set.add(t));
+    byTz.set(tz, set);
+  }
+  return [...byTz].map(([tz, set]) => ({ tz, times: [...set].sort() }));
+}
