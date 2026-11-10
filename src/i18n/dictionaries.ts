@@ -377,7 +377,7 @@ const ru = {
     pushTest: "Уведомления работают 👍",
     pushSummary: (n: number) => `Напоминаний: ${n}`,
     centerEmpty: "Уведомлений пока нет. Здесь будут напоминания об оплатах, запросы в друзья и приглашения.",
-    markAll: "Отметить все прочитанными",
+    markAll: "Всё прочитано",
     clearAll: "Очистить",
   },
   of: {
@@ -761,7 +761,7 @@ const cs: Dict = {
     pushTest: "Oznámení fungují 👍",
     pushSummary: (n: number) => `Připomínek: ${n}`,
     centerEmpty: "Zatím žádná oznámení. Budou tu připomínky plateb, žádosti o přátelství a pozvánky.",
-    markAll: "Označit vše jako přečtené",
+    markAll: "Vše přečteno",
     clearAll: "Vymazat",
   },
   of: {
@@ -1143,7 +1143,7 @@ const en: Dict = {
     pushTest: "Notifications work 👍",
     pushSummary: (n: number) => `Reminders: ${n}`,
     centerEmpty: "No notifications yet. Payment reminders, friend requests and invitations will appear here.",
-    markAll: "Mark all as read",
+    markAll: "All read",
     clearAll: "Clear",
   },
   of: {
