@@ -110,7 +110,10 @@ export default async function TripDeals({
                     {ICON[d.mode]} {d.destName}
                     {d.countryCode && <span className="ml-1 text-xs font-normal text-slate-400">{d.countryCode}</span>}
                   </p>
-                  <p className="shrink-0 font-semibold tabular-nums">{money(Number(d.price), d.currency)}</p>
+                  <p className="shrink-0 text-right font-semibold tabular-nums">
+                    {money(Number(d.price), d.currency)}
+                    <span className="block text-[11px] font-normal text-slate-400">{t.roundTrip}</span>
+                  </p>
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-2">
                   <p className="min-w-0 text-xs text-slate-500">

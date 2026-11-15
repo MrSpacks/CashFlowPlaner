@@ -335,6 +335,7 @@ const ru = {
     home: "На выходных",
     more: (n: number) => `Ещё вариантов: ${n} →`,
     hide: "Скрыть",
+    roundTrip: "туда-обратно",
     pushTitle: "✈️ Дешёвые выходные",
     pushBody: (dest: string, price: string, dates: string, more: number) =>
       `${dest} — ${price} туда-обратно, ${dates}${more > 0 ? `. Ещё вариантов: ${more}` : ""}`,
@@ -746,6 +747,7 @@ const cs: Dict = {
     home: "O víkendu",
     more: (n: number) => `Další možnosti: ${n} →`,
     hide: "Skrýt",
+    roundTrip: "tam a zpět",
     pushTitle: "✈️ Levné víkendy",
     pushBody: (dest: string, price: string, dates: string, more: number) =>
       `${dest} — ${price} tam a zpět, ${dates}${more > 0 ? `. Další možnosti: ${more}` : ""}`,
@@ -1155,6 +1157,7 @@ const en: Dict = {
     home: "This weekend",
     more: (n: number) => `${n} more options →`,
     hide: "Hide",
+    roundTrip: "return",
     pushTitle: "✈️ Cheap weekends",
     pushBody: (dest: string, price: string, dates: string, more: number) =>
       `${dest} — ${price} return, ${dates}${more > 0 ? `. ${more} more options` : ""}`,

@@ -65,6 +65,7 @@ export default async function ForecastPage() {
                 <span className="block text-sm text-slate-500">{d.mode === "plane" ? "✈️" : "🚆"} {t.trp.home}</span>
                 <span className="block font-semibold">
                   {d.destName} · {formatMoney(Number(d.price), d.currency, intl)}
+                  <span className="ml-1 text-sm font-normal text-slate-500">{t.trp.roundTrip}</span>
                 </span>
                 <span className="block text-xs text-slate-500">
                   {d.outDep.slice(8, 10)}.{d.outDep.slice(5, 7)}. – {d.inDep.slice(8, 10)}.{d.inDep.slice(5, 7)}. · {d.source === "ryanair" ? "Ryanair" : "RegioJet"}
