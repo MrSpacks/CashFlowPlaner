@@ -9,6 +9,8 @@ import { formatMoney, monthLabel, todayISO } from "@/lib/forecast";
 import { getReminders } from "@/lib/reminders";
 import { canUseDailyPlan, getDailyPlan, planProgress, userToday } from "@/lib/dailyPlan";
 import { canUseInvest, latestSnapshot } from "@/lib/invest";
+import { hideTripCard } from "@/app/actions";
+import { canUseTrips, getTripPrefs, listTripDeals, upcomingWeekends } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +49,38 @@ export default async function ForecastPage() {
       </span>
     </Link>
   );
+  // «На выходных»: самый дешёвый билет ближайших выходных в пределах цены, если не скрыли.
+  let tripBox: React.ReactNode = null;
+  if (canUseTrips(user.id)) {
+    const prefs = await getTripPrefs(user.id);
+    const weekend = upcomingWeekends()[0];
+    if (prefs.hiddenWeekend !== weekend) {
+      const deals = await listTripDeals({ modes: prefs.modes, maxPrice: prefs.maxPrice, weekend });
+      const d = deals[0];
+      if (d) {
+        tripBox = (
+          <div className="mx-4 mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-emerald-200">
+            <div className="flex items-start justify-between gap-3">
+              <Link href="/ideas#trips" className="min-w-0 flex-1">
+                <span className="block text-sm text-slate-500">{d.mode === "plane" ? "✈️" : "🚆"} {t.trp.home}</span>
+                <span className="block font-semibold">
+                  {d.destName} · {formatMoney(Number(d.price), d.currency, intl)}
+                </span>
+                <span className="block text-xs text-slate-500">
+                  {d.outDep.slice(8, 10)}.{d.outDep.slice(5, 7)}. – {d.inDep.slice(8, 10)}.{d.inDep.slice(5, 7)}. · {d.source === "ryanair" ? "Ryanair" : "RegioJet"}
+                </span>
+                {deals.length > 1 && <span className="mt-1 block text-sm text-emerald-700">{t.trp.more(deals.length - 1)}</span>}
+              </Link>
+              <form action={hideTripCard}>
+                <input type="hidden" name="weekend" value={weekend} />
+                <button aria-label={t.trp.hide} className="p-1 text-slate-300 active:text-slate-600">✕</button>
+              </form>
+            </div>
+          </div>
+        );
+      }
+    }
+  }
   const money = (n: number) => formatMoney(n, f.base, intl);
 
   if (f.isEmpty) {
@@ -55,6 +89,7 @@ export default async function ForecastPage() {
         <PageHeader title={t.forecast.title} subtitle={t.forecast.subtitle} />
         {planBox}
       {invBox}
+      {tripBox}
       <IncomingInvites userId={user.id} t={t.sh} />
         <div className="px-4">
           <Card>
@@ -83,6 +118,7 @@ export default async function ForecastPage() {
       />
       {planBox}
       {invBox}
+      {tripBox}
       <IncomingInvites userId={user.id} t={t.sh} />
       {reminders.length > 0 && (
         <div className="mx-4 mb-4 rounded-2xl bg-amber-50 p-4 ring-1 ring-amber-200">

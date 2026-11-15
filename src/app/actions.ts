@@ -32,6 +32,8 @@ import {
   profiles,
   pushSubscriptions,
   settlements,
+  tripDeals,
+  tripSettings,
 } from "@/db/schema";
 import { DICTIONARIES, isLocale } from "@/i18n/dictionaries";
 import { getI18n } from "@/i18n/server";
@@ -40,6 +42,7 @@ import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, ge
 import { cleanTimes } from "@/lib/personalReminders";
 import { canUseInvest, encrypt, refreshSnapshot } from "@/lib/invest";
 import { canUseDailyPlan } from "@/lib/dailyPlan";
+import { canUseTrips, TRIP_MODES } from "@/lib/trips";
 import { CURRENCIES, parseAmount, todayISO } from "@/lib/forecast";
 import { getConversationForUser, markRead, recipientsOf } from "@/lib/chat";
 import { friendStatus, USERNAME_RE } from "@/lib/people";
@@ -982,4 +985,58 @@ export async function disconnectTrading212() {
   const user = await requireUser();
   await db.delete(investmentAccounts).where(eq(investmentAccounts.ownerId, user.id));
   revalidatePath("/", "layout");
+}
+
+// ---------- дешёвые выходные ----------
+/** Билет из «Дешёвых выходных» → идея (nápad) с названием, датами и ценой. */
+export async function addTripIdea(fd: FormData) {
+  const user = await requireUser();
+  if (!canUseTrips(user.id)) return;
+  const id = str(fd, "dealId");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return;
+  const [d] = await db.select().from(tripDeals).where(eq(tripDeals.id, id)).limit(1);
+  if (!d) return;
+  const { t } = await getI18n();
+  const leg = (dep: string, arr: string | null, no: string | null) =>
+    `${dep.slice(8, 10)}.${dep.slice(5, 7)}. ${dep.slice(11, 16)}${arr ? ` → ${arr.slice(11, 16)}` : ""}${no ? ` (${no})` : ""}`;
+  const carrier = d.source === "ryanair" ? "Ryanair" : "RegioJet";
+  const ideaFd = new FormData();
+  ideaFd.set("title", `${d.mode === "plane" ? "✈️" : "🚆"} ${d.destName} · ${carrier}`);
+  ideaFd.set("type", "trip");
+  ideaFd.set("status", "idea");
+  ideaFd.set("start", d.outDep.slice(0, 10));
+  ideaFd.set("end", d.inDep.slice(0, 10));
+  ideaFd.set("currency", d.currency);
+  ideaFd.set("amount", String(d.price));
+  ideaFd.set("notes", `${t.trp.there}: ${leg(d.outDep, d.outArr, d.outNo)}\n${t.trp.back}: ${leg(d.inDep, d.inArr, d.inNo)}\n${d.url}`);
+  const evId = await insertEvent(user, ideaFd);
+  if (!evId) return;
+  revalidatePath("/", "layout");
+  redirect(`/events/${evId}`);
+}
+
+export async function saveTripSettings(fd: FormData) {
+  const user = await requireUser();
+  if (!canUseTrips(user.id)) return;
+  const max = parseAmount(fd.get("maxPrice"));
+  const modes = TRIP_MODES.filter((m) => fd.get(`mode_${m}`) === "on");
+  const values = {
+    maxPrice: (max != null && max > 0 ? Math.min(max, 1_000_000) : 2000).toFixed(2),
+    modes: (modes.length ? modes : TRIP_MODES).join(","),
+    notify: fd.get("notify") === "on",
+  };
+  await db.insert(tripSettings).values({ userId: user.id, ...values }).onConflictDoUpdate({ target: tripSettings.userId, set: values });
+  revalidatePath("/", "layout");
+}
+
+/** Скрыть карточку «На выходных» на главной до следующих выходных. */
+export async function hideTripCard(fd: FormData) {
+  const user = await requireUser();
+  const weekend = str(fd, "weekend");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekend)) return;
+  await db
+    .insert(tripSettings)
+    .values({ userId: user.id, hiddenWeekend: weekend })
+    .onConflictDoUpdate({ target: tripSettings.userId, set: { hiddenWeekend: weekend } });
+  revalidatePath("/");
 }

@@ -487,3 +487,41 @@ export const investmentSnapshots = pgTable(
   },
   (t) => [index("investment_snapshots_owner_idx").on(t.ownerId, t.takenAt)],
 );
+
+// ---------- дешёвые выходные (Ryanair, RegioJet) ----------
+/** Общий кэш: самые дешёвые варианты туда-обратно из Праги на ближайшие выходные. Обновляет cron раз в день. */
+export const tripDeals = pgTable(
+  "trip_deals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    weekend: date("weekend").notNull(), // пятница выходных
+    mode: text("mode").$type<"plane" | "train">().notNull(),
+    source: text("source").notNull(), // ryanair | regiojet
+    destCode: text("dest_code").notNull(),
+    destName: text("dest_name").notNull(),
+    countryCode: text("country_code"),
+    outDep: text("out_dep").notNull(), // "YYYY-MM-DDTHH:MM", местное время
+    outArr: text("out_arr"),
+    inDep: text("in_dep").notNull(),
+    inArr: text("in_arr"),
+    outNo: text("out_no"),
+    inNo: text("in_no"),
+    price: money("price").notNull(),
+    currency: char("currency", { length: 3 }).default("CZK").notNull(),
+    url: text("url").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("trip_deals_weekend_idx").on(t.weekend, t.price)],
+);
+
+export const tripSettings = pgTable("trip_settings", {
+  userId: text("user_id").primaryKey(),
+  maxPrice: money("max_price").default("2000").notNull(),
+  modes: text("modes").default("plane,train").notNull(),
+  notify: boolean("notify").default(true).notNull(),
+  /** Ключи вариантов, о которых уже присылали push (последние 100). */
+  notified: jsonb("notified").$type<string[]>().default([]).notNull(),
+  /** Карточку на главной скрыли для этих выходных. */
+  hiddenWeekend: date("hidden_weekend"),
+  createdAt: created(),
+});

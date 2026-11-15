@@ -1,0 +1,4 @@
+-- Дешёвые выходные из Праги (Ryanair, RegioJet). Общий кэш вариантов + настройки пользователя.
+CREATE TABLE trip_deals (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), weekend date NOT NULL, mode text NOT NULL, source text NOT NULL, dest_code text NOT NULL, dest_name text NOT NULL, country_code text, out_dep text NOT NULL, out_arr text, in_dep text NOT NULL, in_arr text, out_no text, in_no text, price numeric(14,2) NOT NULL, currency char(3) NOT NULL DEFAULT 'CZK', url text NOT NULL, fetched_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX trip_deals_weekend_idx ON trip_deals (weekend, price);
+CREATE TABLE trip_settings (user_id text PRIMARY KEY REFERENCES auth_user(id) ON DELETE CASCADE, max_price numeric(14,2) NOT NULL DEFAULT 2000, modes text NOT NULL DEFAULT 'plane,train', notify boolean NOT NULL DEFAULT true, notified jsonb NOT NULL DEFAULT '[]', hidden_weekend date, created_at timestamptz NOT NULL DEFAULT now());

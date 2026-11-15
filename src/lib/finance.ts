@@ -204,6 +204,7 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
 
   return {
     base,
+    cushion,
     snapshot: snap,
     months: result,
     isEmpty: !snap && sources.length === 0 && fixed.length === 0 && items.length === 0 && oneTime.length === 0,
