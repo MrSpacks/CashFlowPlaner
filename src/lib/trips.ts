@@ -194,12 +194,12 @@ async function fetchRegiojet(weekends: string[]): Promise<NewDeal[]> {
     const d = weekendDays(fri);
     try {
       // Окно пт–пн: туда — пятница после 14:00 или суббота до 12:00,
-      // обратно — воскресенье после 12:00 или понедельник.
+      // обратно — воскресенье после 12:00 или понедельник после 5:00.
       const [fr, sa, su, mo] = await Promise.all([
         rjCheapest(RJ_PRAGUE, c.id, d.fri, 14),
         rjCheapest(RJ_PRAGUE, c.id, d.sat, 0, 12),
         rjCheapest(c.id, RJ_PRAGUE, d.sun, 12),
-        rjCheapest(c.id, RJ_PRAGUE, d.mon),
+        rjCheapest(c.id, RJ_PRAGUE, d.mon, 5),
       ]);
       const cheaper = (a: RjRoute | null, b: RjRoute | null) => (!a ? b : !b ? a : a.priceFrom! <= b.priceFrom! ? a : b);
       const out = cheaper(fr, sa);
