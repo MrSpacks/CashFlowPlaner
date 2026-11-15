@@ -154,7 +154,8 @@ type RjRoute = {
   vehicleTypes?: string[];
 };
 
-async function rjCheapest(from: number, to: number, day: string): Promise<RjRoute | null> {
+/** Самый дешёвый рейс именно в этот день и в окно часов [fromH, toH). API отдаёт и следующие дни — отсекаем. */
+async function rjCheapest(from: number, to: number, day: string, fromH = 0, toH = 24): Promise<RjRoute | null> {
   const q = new URLSearchParams({
     tariffs: "REGULAR",
     fromLocationType: "CITY",
@@ -167,7 +168,10 @@ async function rjCheapest(from: number, to: number, day: string): Promise<RjRout
     "X-Currency": "CZK",
     "X-Lang": "en",
   })) as { routes?: RjRoute[] };
-  const ok = (j.routes ?? []).filter((r) => r.bookable && (r.freeSeatsCount ?? 1) > 0 && r.priceFrom != null);
+  const ok = (j.routes ?? []).filter((r) => {
+    const h = Number(r.departureTime.slice(11, 13));
+    return r.departureTime.slice(0, 10) === day && h >= fromH && h < toH && r.bookable && (r.freeSeatsCount ?? 1) > 0 && r.priceFrom != null;
+  });
   return ok.sort((a, b) => a.priceFrom! - b.priceFrom!)[0] ?? null;
 }
 
@@ -189,8 +193,12 @@ async function fetchRegiojet(weekends: string[]): Promise<NewDeal[]> {
   const res = await pool(jobs, 6, async ({ fri, c }) => {
     const d = weekendDays(fri);
     try {
-      // Туда — пятница или суббота, обратно — воскресенье.
-      const [fr, sa, su] = await Promise.all([rjCheapest(RJ_PRAGUE, c.id, d.fri), rjCheapest(RJ_PRAGUE, c.id, d.sat), rjCheapest(c.id, RJ_PRAGUE, d.sun)]);
+      // Туда — пятница после 14:00 или суббота до 12:00, обратно — воскресенье после 12:00 (нормальные выходные).
+      const [fr, sa, su] = await Promise.all([
+        rjCheapest(RJ_PRAGUE, c.id, d.fri, 14),
+        rjCheapest(RJ_PRAGUE, c.id, d.sat, 0, 12),
+        rjCheapest(c.id, RJ_PRAGUE, d.sun, 12),
+      ]);
       const out = [fr, sa].filter(Boolean).sort((a, b) => a!.priceFrom! - b!.priceFrom!)[0];
       if (!out || !su) return null;
       const deal: NewDeal = {
