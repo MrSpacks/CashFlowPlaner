@@ -193,14 +193,18 @@ async function fetchRegiojet(weekends: string[]): Promise<NewDeal[]> {
   const res = await pool(jobs, 6, async ({ fri, c }) => {
     const d = weekendDays(fri);
     try {
-      // Туда — пятница после 14:00 или суббота до 12:00, обратно — воскресенье после 12:00 (нормальные выходные).
-      const [fr, sa, su] = await Promise.all([
+      // Окно пт–пн: туда — пятница после 14:00 или суббота до 12:00,
+      // обратно — воскресенье после 12:00 или понедельник.
+      const [fr, sa, su, mo] = await Promise.all([
         rjCheapest(RJ_PRAGUE, c.id, d.fri, 14),
         rjCheapest(RJ_PRAGUE, c.id, d.sat, 0, 12),
         rjCheapest(c.id, RJ_PRAGUE, d.sun, 12),
+        rjCheapest(c.id, RJ_PRAGUE, d.mon),
       ]);
-      const out = [fr, sa].filter(Boolean).sort((a, b) => a!.priceFrom! - b!.priceFrom!)[0];
-      if (!out || !su) return null;
+      const cheaper = (a: RjRoute | null, b: RjRoute | null) => (!a ? b : !b ? a : a.priceFrom! <= b.priceFrom! ? a : b);
+      const out = cheaper(fr, sa);
+      const back = cheaper(su, mo);
+      if (!out || !back) return null;
       const deal: NewDeal = {
         weekend: fri,
         mode: "train",
@@ -210,13 +214,13 @@ async function fetchRegiojet(weekends: string[]): Promise<NewDeal[]> {
         countryCode: c.cc,
         outDep: hm(out.departureTime)!,
         outArr: hm(out.arrivalTime),
-        inDep: hm(su.departureTime)!,
-        inArr: hm(su.arrivalTime),
+        inDep: hm(back.departureTime)!,
+        inArr: hm(back.arrivalTime),
         outNo: null,
         inNo: null,
-        price: (out.priceFrom! + su.priceFrom!).toFixed(2),
+        price: (out.priceFrom! + back.priceFrom!).toFixed(2),
         currency: "CZK",
-        url: regiojetUrl(c.id, out.departureTime.slice(0, 10), d.sun),
+        url: regiojetUrl(c.id, out.departureTime.slice(0, 10), back.departureTime.slice(0, 10)),
       };
       return deal;
     } catch {
