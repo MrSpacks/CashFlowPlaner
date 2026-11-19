@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray } from "drizzle-orm";
+import { and, eq, gte, inArray, max } from "drizzle-orm";
 import { db } from "@/db";
 import { tripDeals, tripSettings } from "@/db/schema";
 import { investUserIds } from "@/lib/invest";
@@ -69,6 +69,72 @@ async function pool<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R>) {
   return out;
 }
 
+// ---------- окна вылета ----------
+/**
+ * Окна (слоты) по местному времени вылета. Туда — из Праги, обратно — из города назначения.
+ * day — сдвиг от пятницы выходных.
+ */
+export const OUT_SLOTS = {
+  fri_eve: { day: 0, from: 16, to: 24 },
+  sat_morn: { day: 1, from: 0, to: 12 },
+  sat_day: { day: 1, from: 12, to: 18 },
+} as const;
+export const BACK_SLOTS = {
+  sat_eve: { day: 1, from: 16, to: 24 },
+  sun_day: { day: 2, from: 10, to: 17 },
+  sun_eve: { day: 2, from: 17, to: 24 },
+  mon_morn: { day: 3, from: 5, to: 12 },
+  mon_day: { day: 3, from: 12, to: 24 },
+} as const;
+export type OutSlot = keyof typeof OUT_SLOTS;
+export type BackSlot = keyof typeof BACK_SLOTS;
+export const OUT_SLOT_KEYS = Object.keys(OUT_SLOTS) as OutSlot[];
+export const BACK_SLOT_KEYS = Object.keys(BACK_SLOTS) as BackSlot[];
+export const DEFAULT_OUT: OutSlot[] = ["fri_eve", "sat_morn"];
+export const DEFAULT_BACK: BackSlot[] = ["sun_day", "sun_eve"];
+
+type Slot = { day: number; from: number; to: number };
+const inSlot = (dt: string, fri: string, s: Slot) => {
+  const h = Number(dt.slice(11, 13));
+  return dt.slice(0, 10) === addDays(fri, s.day) && h >= s.from && h < s.to;
+};
+const hhmm = (h: number) => (h >= 24 ? "23:59" : `${String(h).padStart(2, "0")}:00`);
+
+/** Пары «туда × обратно», где обратно не раньше, чем туда. */
+const SLOT_PAIRS = OUT_SLOT_KEYS.flatMap((o) =>
+  BACK_SLOT_KEYS.filter((b) => BACK_SLOTS[b].day > OUT_SLOTS[o].day || BACK_SLOTS[b].from >= OUT_SLOTS[o].to - 2).map((b) => [o, b] as const),
+);
+
+// ---------- дневные часы в городе ----------
+export const DAY_FROM = 8;
+export const DAY_TO = 22;
+const toMs = (dt: string) => Date.parse(`${dt.slice(0, 16)}:00Z`); // местное время города как «UTC» — разница корректна
+
+/** Сколько часов между прилётом и вылетом обратно приходится на 8:00–22:00 (время города назначения). */
+export function daytimeHours(arrive: string | null, leave: string) {
+  if (!arrive) return 0;
+  const a = toMs(arrive);
+  const b = toMs(leave);
+  if (!(b > a)) return 0;
+  let sum = 0;
+  for (let day = Date.parse(`${arrive.slice(0, 10)}T00:00:00Z`); day < b; day += 86400000) {
+    const s = Math.max(a, day + DAY_FROM * 3600000);
+    const e = Math.min(b, day + DAY_TO * 3600000);
+    if (e > s) sum += e - s;
+  }
+  return Math.round(sum / 3600000);
+}
+/** Ночей в городе (сколько раз встретили 3:00 между прилётом и вылетом). */
+export function nightsIn(arrive: string | null, leave: string) {
+  if (!arrive) return 0;
+  let n = 0;
+  for (let day = Date.parse(`${arrive.slice(0, 10)}T00:00:00Z`); day < toMs(leave); day += 86400000) {
+    const t = day + 3 * 3600000;
+    if (t > toMs(arrive) && t < toMs(leave)) n++;
+  }
+  return n;
+}
+
 // ---------- Ryanair ----------
 type RyanairLeg = {
   departureAirport: { iataCode: string; city?: { name?: string; countryCode?: string }; name: string };
@@ -88,45 +154,61 @@ function ryanairUrl(dest: string, out: string, back: string) {
   return `https://www.ryanair.com/cz/cs/trip/flights/select?${q}`;
 }
 
+/**
+ * Ryanair отдаёт самый дешёвый вариант на направление в заданном окне, поэтому спрашиваем
+ * отдельно каждую пару окон (туда × обратно). Время дополнительно проверяем сами.
+ */
 async function fetchRyanair(weekends: string[]): Promise<NewDeal[]> {
-  const deals: NewDeal[] = [];
-  for (const fri of weekends) {
-    const d = weekendDays(fri);
+  const jobs = weekends.flatMap((fri) => SLOT_PAIRS.map(([o, b]) => ({ fri, o, b })));
+  const res = await pool(jobs, 4, async ({ fri, o, b }) => {
+    const so = OUT_SLOTS[o];
+    const sb = BACK_SLOTS[b];
     const q = new URLSearchParams({
       departureAirportIataCode: "PRG",
-      outboundDepartureDateFrom: d.fri,
-      outboundDepartureDateTo: d.sat,
-      inboundDepartureDateFrom: d.sun,
-      inboundDepartureDateTo: d.mon,
+      outboundDepartureDateFrom: addDays(fri, so.day),
+      outboundDepartureDateTo: addDays(fri, so.day),
+      outboundDepartureTimeFrom: hhmm(so.from),
+      outboundDepartureTimeTo: hhmm(so.to),
+      inboundDepartureDateFrom: addDays(fri, sb.day),
+      inboundDepartureDateTo: addDays(fri, sb.day),
+      inboundDepartureTimeFrom: hhmm(sb.from),
+      inboundDepartureTimeTo: hhmm(sb.to),
       currency: "CZK",
       market: "cs-cz",
       adultPaxCount: "1",
-      durationFrom: "1",
-      durationTo: "4",
     });
-    const j = (await getJson(`https://services-api.ryanair.com/farfnd/v4/roundTripFares?${q}`)) as { fares?: RyanairFare[] };
-    for (const f of j.fares ?? []) {
-      const dest = f.outbound.arrivalAirport;
-      deals.push({
-        weekend: fri,
-        mode: "plane",
-        source: "ryanair",
-        destCode: dest.iataCode,
-        destName: dest.city?.name || dest.name,
-        countryCode: dest.city?.countryCode?.toUpperCase() ?? null,
-        outDep: hm(f.outbound.departureDate)!,
-        outArr: hm(f.outbound.arrivalDate),
-        inDep: hm(f.inbound.departureDate)!,
-        inArr: hm(f.inbound.arrivalDate),
-        outNo: f.outbound.flightNumber ?? null,
-        inNo: f.inbound.flightNumber ?? null,
-        price: f.summary.price.value.toFixed(2),
-        currency: f.summary.price.currencyCode || "CZK",
-        url: ryanairUrl(dest.iataCode, f.outbound.departureDate.slice(0, 10), f.inbound.departureDate.slice(0, 10)),
-      });
+    try {
+      const j = (await getJson(`https://services-api.ryanair.com/farfnd/v4/roundTripFares?${q}`)) as { fares?: RyanairFare[] };
+      return (j.fares ?? [])
+        .filter((f) => inSlot(f.outbound.departureDate, fri, so) && inSlot(f.inbound.departureDate, fri, sb))
+        .map((f): NewDeal => {
+          const dest = f.outbound.arrivalAirport;
+          return {
+            weekend: fri,
+            mode: "plane",
+            source: "ryanair",
+            outSlot: o,
+            backSlot: b,
+            destCode: dest.iataCode,
+            destName: dest.city?.name || dest.name,
+            countryCode: dest.city?.countryCode?.toUpperCase() ?? null,
+            outDep: hm(f.outbound.departureDate)!,
+            outArr: hm(f.outbound.arrivalDate),
+            inDep: hm(f.inbound.departureDate)!,
+            inArr: hm(f.inbound.arrivalDate),
+            outNo: f.outbound.flightNumber ?? null,
+            inNo: f.inbound.flightNumber ?? null,
+            price: f.summary.price.value.toFixed(2),
+            currency: f.summary.price.currencyCode || "CZK",
+            url: ryanairUrl(dest.iataCode, f.outbound.departureDate.slice(0, 10), f.inbound.departureDate.slice(0, 10)),
+          };
+        });
+    } catch {
+      return null;
     }
-  }
-  return deals;
+  });
+  if (res.every((r) => r === null)) throw new Error("ryanair: no data");
+  return res.flatMap((r) => r ?? []);
 }
 
 // ---------- RegioJet (поезда и автобусы) ----------
@@ -151,11 +233,10 @@ type RjRoute = {
   priceFrom: number | null;
   bookable: boolean;
   freeSeatsCount: number | null;
-  vehicleTypes?: string[];
 };
 
-/** Самый дешёвый рейс именно в этот день и в окно часов [fromH, toH). API отдаёт и следующие дни — отсекаем. */
-async function rjCheapest(from: number, to: number, day: string, fromH = 0, toH = 24): Promise<RjRoute | null> {
+/** Все продаваемые рейсы именно в этот день (API отдаёт и следующие дни — отсекаем). */
+async function rjDay(from: number, to: number, day: string): Promise<RjRoute[]> {
   const q = new URLSearchParams({
     tariffs: "REGULAR",
     fromLocationType: "CITY",
@@ -168,12 +249,11 @@ async function rjCheapest(from: number, to: number, day: string, fromH = 0, toH 
     "X-Currency": "CZK",
     "X-Lang": "en",
   })) as { routes?: RjRoute[] };
-  const ok = (j.routes ?? []).filter((r) => {
-    const h = Number(r.departureTime.slice(11, 13));
-    return r.departureTime.slice(0, 10) === day && h >= fromH && h < toH && r.bookable && (r.freeSeatsCount ?? 1) > 0 && r.priceFrom != null;
-  });
-  return ok.sort((a, b) => a.priceFrom! - b.priceFrom!)[0] ?? null;
+  return (j.routes ?? []).filter((r) => r.departureTime.slice(0, 10) === day && r.bookable && (r.freeSeatsCount ?? 1) > 0 && r.priceFrom != null);
 }
+
+const cheapestIn = (routes: RjRoute[], fri: string, s: Slot) =>
+  routes.filter((r) => inSlot(r.departureTime, fri, s)).sort((a, b) => a.priceFrom! - b.priceFrom!)[0] ?? null;
 
 function regiojetUrl(to: number, out: string, back: string) {
   const q = new URLSearchParams({
@@ -193,92 +273,141 @@ async function fetchRegiojet(weekends: string[]): Promise<NewDeal[]> {
   const res = await pool(jobs, 6, async ({ fri, c }) => {
     const d = weekendDays(fri);
     try {
-      // Окно пт–пн: туда — пятница после 14:00 или суббота до 12:00,
-      // обратно — воскресенье после 12:00 или понедельник после 5:00.
-      const [fr, sa, su, mo] = await Promise.all([
-        rjCheapest(RJ_PRAGUE, c.id, d.fri, 14),
-        rjCheapest(RJ_PRAGUE, c.id, d.sat, 0, 12),
-        rjCheapest(c.id, RJ_PRAGUE, d.sun, 12),
-        rjCheapest(c.id, RJ_PRAGUE, d.mon, 5),
+      // Туда — пт и сб, обратно — сб, вс, пн. Потом раскладываем по окнам.
+      const [oFri, oSat, bSat, bSun, bMon] = await Promise.all([
+        rjDay(RJ_PRAGUE, c.id, d.fri),
+        rjDay(RJ_PRAGUE, c.id, d.sat),
+        rjDay(c.id, RJ_PRAGUE, d.sat),
+        rjDay(c.id, RJ_PRAGUE, d.sun),
+        rjDay(c.id, RJ_PRAGUE, d.mon),
       ]);
-      const cheaper = (a: RjRoute | null, b: RjRoute | null) => (!a ? b : !b ? a : a.priceFrom! <= b.priceFrom! ? a : b);
-      const out = cheaper(fr, sa);
-      const back = cheaper(su, mo);
-      if (!out || !back) return null;
-      const deal: NewDeal = {
-        weekend: fri,
-        mode: "train",
-        source: "regiojet",
-        destCode: String(c.id),
-        destName: c.name,
-        countryCode: c.cc,
-        outDep: hm(out.departureTime)!,
-        outArr: hm(out.arrivalTime),
-        inDep: hm(back.departureTime)!,
-        inArr: hm(back.arrivalTime),
-        outNo: null,
-        inNo: null,
-        price: (out.priceFrom! + back.priceFrom!).toFixed(2),
-        currency: "CZK",
-        url: regiojetUrl(c.id, out.departureTime.slice(0, 10), back.departureTime.slice(0, 10)),
-      };
-      return deal;
+      const outs = [...oFri, ...oSat];
+      const backs = [...bSat, ...bSun, ...bMon];
+      const deals: NewDeal[] = [];
+      for (const [o, b] of SLOT_PAIRS) {
+        const out = cheapestIn(outs, fri, OUT_SLOTS[o]);
+        const back = cheapestIn(backs, fri, BACK_SLOTS[b]);
+        if (!out || !back || back.departureTime <= out.arrivalTime) continue;
+        deals.push({
+          weekend: fri,
+          mode: "train",
+          source: "regiojet",
+          outSlot: o,
+          backSlot: b,
+          destCode: String(c.id),
+          destName: c.name,
+          countryCode: c.cc,
+          outDep: hm(out.departureTime)!,
+          outArr: hm(out.arrivalTime),
+          inDep: hm(back.departureTime)!,
+          inArr: hm(back.arrivalTime),
+          outNo: null,
+          inNo: null,
+          price: (out.priceFrom! + back.priceFrom!).toFixed(2),
+          currency: "CZK",
+          url: regiojetUrl(c.id, out.departureTime.slice(0, 10), back.departureTime.slice(0, 10)),
+        });
+      }
+      return deals;
     } catch {
       return null;
     }
   });
-  const deals = res.filter((x): x is NewDeal => !!x);
-  if (deals.length === 0) throw new Error("regiojet: no data");
-  return deals;
+  if (res.every((r) => r === null)) throw new Error("regiojet: no data");
+  return res.flatMap((r) => r ?? []);
 }
 
 /** Обновить кэш. Каждый источник заменяется целиком только при успешной загрузке. */
 export async function refreshTripDeals() {
   const weekends = upcomingWeekends();
   const report: Record<string, number | string> = {};
-  for (const [source, fn] of [
-    ["ryanair", fetchRyanair],
-    ["regiojet", fetchRegiojet],
-  ] as const) {
-    try {
-      const deals = await fn(weekends);
-      await db.transaction(async (tx) => {
-        await tx.delete(tripDeals).where(eq(tripDeals.source, source));
-        if (deals.length) await tx.insert(tripDeals).values(deals);
-      });
-      report[source] = deals.length;
-    } catch (e) {
-      report[source] = `error: ${(e as Error).message.slice(0, 120)}`;
-    }
-  }
+  await Promise.all(
+    (
+      [
+        ["ryanair", fetchRyanair],
+        ["regiojet", fetchRegiojet],
+      ] as const
+    ).map(async ([source, fn]) => {
+      try {
+        const deals = await fn(weekends);
+        await db.transaction(async (tx) => {
+          await tx.delete(tripDeals).where(eq(tripDeals.source, source));
+          for (let i = 0; i < deals.length; i += 500) await tx.insert(tripDeals).values(deals.slice(i, i + 500));
+        });
+        report[source] = deals.length;
+      } catch (e) {
+        report[source] = `error: ${(e as Error).message.slice(0, 120)}`;
+      }
+    }),
+  );
   return report;
 }
 
+/** Когда кэш обновлялся последний раз. */
+export async function lastTripRefresh() {
+  const [r] = await db.select({ t: max(tripDeals.fetchedAt) }).from(tripDeals);
+  return r?.t ?? null;
+}
+
 // ---------- настройки и выборка ----------
-export type TripPrefs = { maxPrice: number; modes: TripMode[]; notify: boolean; notified: string[]; hiddenWeekend: string | null };
+export type TripSort = "price" | "value";
+export type TripPrefs = {
+  maxPrice: number;
+  modes: TripMode[];
+  outSlots: OutSlot[];
+  backSlots: BackSlot[];
+  minHours: number;
+  sort: TripSort;
+  notify: boolean;
+  notified: string[];
+};
+
+const parseList = <T extends string>(v: string | null | undefined, all: readonly T[], def: T[]) => {
+  const xs = (v ?? "").split(",").filter((x): x is T => all.includes(x as T));
+  return xs.length ? xs : def;
+};
 
 export async function getTripPrefs(userId: string): Promise<TripPrefs> {
   const [s] = await db.select().from(tripSettings).where(eq(tripSettings.userId, userId)).limit(1);
-  const modes = (s?.modes ?? "plane,train").split(",").filter((m): m is TripMode => TRIP_MODES.includes(m as TripMode));
   return {
     maxPrice: Number(s?.maxPrice ?? 2000),
-    modes: modes.length ? modes : TRIP_MODES,
+    modes: parseList(s?.modes, TRIP_MODES, TRIP_MODES),
+    outSlots: parseList(s?.outSlots, OUT_SLOT_KEYS, DEFAULT_OUT),
+    backSlots: parseList(s?.backSlots, BACK_SLOT_KEYS, DEFAULT_BACK),
+    minHours: s?.minHours ?? 20,
+    sort: s?.sort === "price" ? "price" : "value",
     notify: s?.notify ?? true,
     notified: s?.notified ?? [],
-    hiddenWeekend: s?.hiddenWeekend ?? null,
   };
 }
 
 export const dealKey = (d: Pick<TripDeal, "source" | "destCode" | "outDep" | "inDep">) => `${d.source}:${d.destCode}:${d.outDep}:${d.inDep}`;
 
-/** Варианты на ближайшие выходные (от сегодняшнего дня), самые дешёвые первыми. */
-export async function listTripDeals(opts: { modes?: TripMode[]; maxPrice?: number; weekend?: string } = {}) {
-  const today = todayISO();
-  const where = [gte(tripDeals.outDep, today)];
-  if (opts.modes?.length) where.push(inArray(tripDeals.mode, opts.modes));
+export type TripOption = TripDeal & { hours: number; nights: number; perHour: number };
+
+/**
+ * Варианты под настройки пользователя: только его окна вылета, не меньше minHours дневных часов
+ * в городе и не дороже maxPrice. На каждое направление и выходные — один лучший вариант.
+ */
+export async function listTripOptions(prefs: TripPrefs, opts: { weekend?: string; modes?: TripMode[] } = {}): Promise<TripOption[]> {
+  const where = [gte(tripDeals.outDep, todayISO()), inArray(tripDeals.mode, opts.modes ?? prefs.modes)];
   if (opts.weekend) where.push(eq(tripDeals.weekend, opts.weekend));
-  const rows = await db.select().from(tripDeals).where(and(...where)).orderBy(asc(tripDeals.price));
-  return opts.maxPrice != null ? rows.filter((r) => Number(r.price) <= opts.maxPrice!) : rows;
+  where.push(inArray(tripDeals.outSlot, prefs.outSlots), inArray(tripDeals.backSlot, prefs.backSlots));
+  const rows = await db.select().from(tripDeals).where(and(...where));
+
+  const best = new Map<string, TripOption>();
+  for (const r of rows) {
+    const price = Number(r.price);
+    if (price > prefs.maxPrice) continue;
+    const hours = daytimeHours(r.outArr, r.inDep);
+    if (hours < prefs.minHours) continue;
+    const opt: TripOption = { ...r, hours, nights: nightsIn(r.outArr, r.inDep), perHour: price / Math.max(hours, 1) };
+    const k = `${r.weekend}:${r.source}:${r.destCode}`;
+    const cur = best.get(k);
+    const better = !cur || (prefs.sort === "price" ? price < Number(cur.price) || (price === Number(cur.price) && hours > cur.hours) : opt.perHour < cur.perHour);
+    if (better) best.set(k, opt);
+  }
+  return [...best.values()].sort((a, b) => (prefs.sort === "price" ? Number(a.price) - Number(b.price) : a.perHour - b.perHour));
 }
 
 export type Budget = "ok" | "tight" | "negative";

@@ -42,7 +42,16 @@ import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, ge
 import { cleanTimes } from "@/lib/personalReminders";
 import { canUseInvest, encrypt, refreshSnapshot } from "@/lib/invest";
 import { canUseDailyPlan } from "@/lib/dailyPlan";
-import { canUseTrips, TRIP_MODES } from "@/lib/trips";
+import {
+  BACK_SLOT_KEYS,
+  canUseTrips,
+  DEFAULT_BACK,
+  DEFAULT_OUT,
+  lastTripRefresh,
+  OUT_SLOT_KEYS,
+  refreshTripDeals,
+  TRIP_MODES,
+} from "@/lib/trips";
 import { CURRENCIES, parseAmount, todayISO } from "@/lib/forecast";
 import { getConversationForUser, markRead, recipientsOf } from "@/lib/chat";
 import { friendStatus, USERNAME_RE } from "@/lib/people";
@@ -1020,23 +1029,28 @@ export async function saveTripSettings(fd: FormData) {
   if (!canUseTrips(user.id)) return;
   const max = parseAmount(fd.get("maxPrice"));
   const modes = TRIP_MODES.filter((m) => fd.get(`mode_${m}`) === "on");
+  const outSlots = OUT_SLOT_KEYS.filter((k) => fd.get(`out_${k}`) === "on");
+  const backSlots = BACK_SLOT_KEYS.filter((k) => fd.get(`back_${k}`) === "on");
+  const minHours = Math.round(Number(fd.get("minHours")));
   const values = {
     maxPrice: (max != null && max > 0 ? Math.min(max, 1_000_000) : 2000).toFixed(2),
     modes: (modes.length ? modes : TRIP_MODES).join(","),
+    outSlots: (outSlots.length ? outSlots : DEFAULT_OUT).join(","),
+    backSlots: (backSlots.length ? backSlots : DEFAULT_BACK).join(","),
+    minHours: Number.isFinite(minHours) ? Math.min(Math.max(minHours, 0), 60) : 20,
+    sort: fd.get("sort") === "price" ? "price" : "value",
     notify: fd.get("notify") === "on",
   };
   await db.insert(tripSettings).values({ userId: user.id, ...values }).onConflictDoUpdate({ target: tripSettings.userId, set: values });
   revalidatePath("/", "layout");
 }
 
-/** Скрыть карточку «На выходных» на главной до следующих выходных. */
-export async function hideTripCard(fd: FormData) {
+/** «Обновить сейчас»: перезагрузить цены (не чаще раза в 10 минут). */
+export async function refreshTripsNow() {
   const user = await requireUser();
-  const weekend = str(fd, "weekend");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(weekend)) return;
-  await db
-    .insert(tripSettings)
-    .values({ userId: user.id, hiddenWeekend: weekend })
-    .onConflictDoUpdate({ target: tripSettings.userId, set: { hiddenWeekend: weekend } });
-  revalidatePath("/");
+  if (!canUseTrips(user.id)) return;
+  const last = await lastTripRefresh();
+  if (last && Date.now() - last.getTime() < 10 * 60 * 1000) return;
+  await refreshTripDeals();
+  revalidatePath("/", "layout");
 }

@@ -4,10 +4,10 @@ import { authUser, tripSettings } from "@/db/schema";
 import { DICTIONARIES, INTL_LOCALE, isLocale } from "@/i18n/dictionaries";
 import { formatDate, formatMoney } from "@/lib/forecast";
 import { sendPushToUser } from "@/lib/push";
-import { canUseTrips, dealKey, getTripPrefs, listTripDeals, refreshTripDeals } from "@/lib/trips";
+import { canUseTrips, dealKey, getTripPrefs, listTripOptions, refreshTripDeals } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 /** Раз в день (Vercel Cron): обновить «Дешёвые выходные» и прислать push о новом выгодном варианте. */
 export async function GET(req: Request) {
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   for (const userId of users) {
     const prefs = await getTripPrefs(userId);
     if (!prefs.notify) continue;
-    const fresh = (await listTripDeals({ modes: prefs.modes, maxPrice: prefs.maxPrice })).filter((d) => !prefs.notified.includes(dealKey(d)));
+    const fresh = (await listTripOptions(prefs)).filter((d) => !prefs.notified.includes(dealKey(d)));
     if (!fresh.length) continue;
     const best = fresh[0];
 

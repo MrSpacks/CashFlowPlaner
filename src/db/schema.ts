@@ -497,6 +497,8 @@ export const tripDeals = pgTable(
     weekend: date("weekend").notNull(), // пятница выходных
     mode: text("mode").$type<"plane" | "train">().notNull(),
     source: text("source").notNull(), // ryanair | regiojet
+    outSlot: text("out_slot"), // окно вылета туда: fri_eve | sat_morn | sat_day
+    backSlot: text("back_slot"), // окно обратно: sat_eve | sun_day | sun_eve | mon_morn | mon_day
     destCode: text("dest_code").notNull(),
     destName: text("dest_name").notNull(),
     countryCode: text("country_code"),
@@ -518,6 +520,11 @@ export const tripSettings = pgTable("trip_settings", {
   userId: text("user_id").primaryKey(),
   maxPrice: money("max_price").default("2000").notNull(),
   modes: text("modes").default("plane,train").notNull(),
+  outSlots: text("out_slots").default("fri_eve,sat_morn").notNull(),
+  backSlots: text("back_slots").default("sun_day,sun_eve").notNull(),
+  /** Минимум дневных часов (8:00–22:00) в городе. */
+  minHours: integer("min_hours").default(20).notNull(),
+  sort: text("sort").default("value").notNull(), // price | value (цена за дневной час)
   notify: boolean("notify").default(true).notNull(),
   /** Ключи вариантов, о которых уже присылали push (последние 100). */
   notified: jsonb("notified").$type<string[]>().default([]).notNull(),

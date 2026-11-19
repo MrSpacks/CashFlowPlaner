@@ -9,7 +9,7 @@ import { formatMoney, monthLabel, todayISO } from "@/lib/forecast";
 import { getReminders } from "@/lib/reminders";
 import { canUseDailyPlan, getDailyPlan, planProgress, userToday } from "@/lib/dailyPlan";
 import { canUseInvest, latestSnapshot } from "@/lib/invest";
-import { canUseTrips, getTripPrefs, listTripDeals, upcomingWeekends } from "@/lib/trips";
+import { canUseTrips, getTripPrefs, listTripOptions, upcomingWeekends, type TripOption } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
 
@@ -28,10 +28,10 @@ export default async function ForecastPage() {
   const inv = canUseInvest(user.id) ? await latestSnapshot(user.id) : null;
 
   // «На выходных»: самый дешёвый билет ближайших выходных в пределах цены.
-  let trip: Awaited<ReturnType<typeof listTripDeals>>[number] | null = null;
+  let trip: TripOption | null = null;
   if (canUseTrips(user.id)) {
     const prefs = await getTripPrefs(user.id);
-    trip = (await listTripDeals({ modes: prefs.modes, maxPrice: prefs.maxPrice, weekend: upcomingWeekends()[0] }))[0] ?? null;
+    trip = (await listTripOptions(prefs, { weekend: upcomingWeekends()[0] }))[0] ?? null;
   }
 
   // Ряд плиток сверху: план дня, инвестиции, билеты. Каждая ведёт в свой раздел.
@@ -69,7 +69,9 @@ export default async function ForecastPage() {
           {trip.mode === "plane" ? "✈️" : "🚆"} {t.trp.home}
         </span>
         <span className="mt-1 truncate text-base font-semibold tabular-nums">{formatMoney(Number(trip.price), trip.currency, intl)}</span>
-        <span className="truncate text-xs text-slate-500">{trip.destName}</span>
+        <span className="truncate text-xs text-slate-500">
+          {trip.destName} · {trip.hours} h
+        </span>
       </Link>,
     );
   }

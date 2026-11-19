@@ -9,6 +9,8 @@ import { listEventsWithTotals } from "@/lib/events";
 import { canUseTrips } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
+// «Обновить сейчас» в блоке билетов грузит цены прямо в действии формы — до минуты.
+export const maxDuration = 120;
 
 export default async function IdeasPage({ searchParams }: { searchParams: Promise<{ w?: string; m?: string }> }) {
   const user = await requireUser();
