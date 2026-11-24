@@ -135,6 +135,28 @@ export default async function MorePage() {
         </div>
       </form>
 
+      <details className="group mx-4 mt-4">
+        <summary className="flex cursor-pointer list-none items-center justify-between rounded-2xl px-3 py-2.5 text-sm font-medium text-slate-500 ring-1 ring-slate-200 [&::-webkit-details-marker]:hidden">
+          <span>⬇️ {t.exp.title}</span>
+          <span className="transition group-open:rotate-180">▾</span>
+        </summary>
+        <div className="mt-2 space-y-2">
+          <p className="text-xs text-slate-500">{t.exp.hint}</p>
+          {(
+            [
+              ["spendings.csv", t.exp.spendings],
+              ["events.csv", t.exp.events],
+              ["finance.csv", t.exp.finance],
+              ["backup.json", t.exp.backup],
+            ] as const
+          ).map(([k, label]) => (
+            <a key={k} href={`/api/export/${k}`} download className={`${btnGhostCls} w-full`}>
+              {label}
+            </a>
+          ))}
+        </div>
+      </details>
+
       <form action={signOutAction} className="mx-4 mt-4">
         <button className={`${btnGhostCls} w-full text-rose-600`}>{t.more.signOut}</button>
       </form>

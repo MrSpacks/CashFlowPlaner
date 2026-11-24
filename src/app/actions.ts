@@ -133,6 +133,31 @@ export async function signInGoogleAction(fd: FormData) {
   redirect("/login?error=generic");
 }
 
+/** «Забыли пароль?» — письмо со ссылкой. Ответ одинаковый, есть такой email или нет. */
+export async function forgotPasswordAction(fd: FormData) {
+  const email = str(fd, "email").toLowerCase();
+  if (email) {
+    try {
+      await auth.api.requestPasswordReset({ body: { email, redirectTo: "/reset" }, headers: await headers() });
+    } catch {
+      // не раскрываем, есть ли такой пользователь
+    }
+  }
+  redirect("/forgot?sent=1");
+}
+
+export async function resetPasswordAction(fd: FormData) {
+  const token = str(fd, "token");
+  const password = String(fd.get("password") ?? "");
+  if (password.length < 8) redirect(`/reset?token=${encodeURIComponent(token)}&error=password`);
+  try {
+    await auth.api.resetPassword({ body: { newPassword: password, token } });
+  } catch {
+    redirect(`/reset?token=${encodeURIComponent(token)}&error=expired`);
+  }
+  redirect("/login?reset=1");
+}
+
 export async function signOutAction() {
   await auth.api.signOut({ headers: await headers() });
   redirect("/login");

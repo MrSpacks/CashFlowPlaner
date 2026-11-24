@@ -9,12 +9,14 @@ export default function AuthForm({
   error,
   google,
   next,
+  notice,
 }: {
   mode: "login" | "register";
   t: Dict["auth"];
   error?: string;
   google: boolean;
   next?: string;
+  notice?: string;
 }) {
   const nextField = next && next.startsWith("/") ? <input type="hidden" name="next" value={next} /> : null;
   const q = next && next.startsWith("/") ? `?next=${encodeURIComponent(next)}` : "";
@@ -32,6 +34,7 @@ export default function AuthForm({
       </div>
 
       {errText && <p className="mb-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{errText}</p>}
+      {notice && <p className="mb-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{notice}</p>}
 
       <form action={isLogin ? signInAction : signUpAction} className="space-y-4">
         {nextField}
@@ -61,6 +64,11 @@ export default function AuthForm({
         <button type="submit" className={`${btnCls} w-full`}>
           {isLogin ? t.login : t.register}
         </button>
+        {isLogin && (
+          <a href="/forgot" className="block text-center text-sm text-slate-500">
+            {t.forgot}
+          </a>
+        )}
       </form>
 
       {google && (
