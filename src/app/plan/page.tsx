@@ -7,7 +7,7 @@ import { btnCls, Card, inputCls, labelCls } from "@/components/ui";
 import type { DailyFeedback } from "@/db/schema";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
-import { canUseDailyPlan, DATE_RE, getDailyPlan, planProgress, recentDailyPlans, userToday } from "@/lib/dailyPlan";
+import { canUseDailyPlan, DATE_RE, getDailyPlan, planProgress, planStats, recentDailyPlans, userToday } from "@/lib/dailyPlan";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,9 @@ export default async function DailyPlanPage({ searchParams }: { searchParams: Pr
   const asked = (await searchParams).date;
   const date = asked && DATE_RE.test(asked) && asked <= today ? asked : today;
 
-  const [plan, recent] = await Promise.all([getDailyPlan(user.id, date), recentDailyPlans(user.id, today, 14)]);
+  const [plan, month30] = await Promise.all([getDailyPlan(user.id, date), recentDailyPlans(user.id, today, 31)]);
+  const recent = month30.slice(0, 14);
+  const stats = planStats(month30, today);
   const fb: DailyFeedback = plan?.feedback ?? {};
   const dateTitle = fmt(date, intl, { weekday: "long", day: "numeric", month: "long" });
 
@@ -118,6 +120,41 @@ export default async function DailyPlanPage({ searchParams }: { searchParams: Pr
           <span className="font-medium">📄 {t.dp.planDoc}</span>
           <span className="text-emerald-700">↗</span>
         </a>
+
+        {month30.length > 0 && (
+          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-2xl font-bold tabular-nums">🔥 {stats.streak}</p>
+                <p className="text-xs text-slate-500">{t.dp.streak}</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold tabular-nums">{stats.week.pct ?? "—"}{stats.week.pct != null && " %"}</p>
+                <p className="text-xs text-slate-500">{t.dp.week}</p>
+              </div>
+              <div>
+                <p className="text-2xl font-bold tabular-nums">{stats.month.pct ?? "—"}{stats.month.pct != null && " %"}</p>
+                <p className="text-xs text-slate-500">{t.dp.month}</p>
+              </div>
+            </div>
+            <div className="mt-3 flex h-12 items-end gap-[2px]">
+              {stats.days.map((d) => (
+                <span
+                  key={d.date}
+                  title={d.date}
+                  className={`flex-1 rounded-sm ${
+                    d.pct == null ? "bg-slate-100" : d.pct >= 1 ? "bg-emerald-500" : d.pct >= 0.5 ? "bg-emerald-300" : d.pct > 0 ? "bg-amber-400" : "bg-rose-300"
+                  }`}
+                  style={{ height: d.pct == null ? "15%" : `${Math.max(15, d.pct * 100)}%` }}
+                />
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              {t.dp.statsHint}
+              {stats.week.energy != null && ` · ${t.dp.energyAvg}: ${stats.week.energy}/5`}
+            </p>
+          </div>
+        )}
 
         {recent.length > 0 && (
           <div>

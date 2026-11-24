@@ -95,3 +95,58 @@ export async function plansToNotify() {
     .from(dailyPlans)
     .where(and(isNull(dailyPlans.notifiedAt), gt(dailyPlans.generatedAt, since), lte(dailyPlans.generatedAt, now)));
 }
+
+/** День засчитан, если сделано не меньше половины задач. */
+function dayOk(p: { tasks: { id: string }[]; done: Record<string, boolean> }) {
+  const { done, total } = planProgress(p);
+  return total > 0 && done * 2 >= total;
+}
+
+const shiftDay = (iso: string, n: number) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+/**
+ * Статистика плана дня: серия засчитанных дней подряд (сегодня ещё не окончен — не рвёт серию),
+ * выполнение и средняя энергия за 7 и 30 дней, проценты по дням для графика.
+ */
+export function planStats(
+  plans: { date: string; tasks: { id: string }[]; done: Record<string, boolean>; feedback?: { energy?: number } | null }[],
+  today: string,
+) {
+  const by = new Map(plans.map((p) => [p.date, p]));
+  let streak = 0;
+  let d = by.get(today) && dayOk(by.get(today)!) ? today : shiftDay(today, -1);
+  while (by.get(d) && dayOk(by.get(d)!)) {
+    streak++;
+    d = shiftDay(d, -1);
+  }
+  const period = (days: number) => {
+    let done = 0;
+    let total = 0;
+    const energies: number[] = [];
+    for (let i = 0; i < days; i++) {
+      const p = by.get(shiftDay(today, -i));
+      if (!p) continue;
+      const pr = planProgress(p);
+      done += pr.done;
+      total += pr.total;
+      if (p.feedback?.energy) energies.push(p.feedback.energy);
+    }
+    return {
+      done,
+      total,
+      pct: total ? Math.round((done / total) * 100) : null,
+      energy: energies.length ? Math.round((energies.reduce((a, e) => a + e, 0) / energies.length) * 10) / 10 : null,
+    };
+  };
+  const days = Array.from({ length: 30 }, (_, i) => {
+    const date = shiftDay(today, i - 29);
+    const p = by.get(date);
+    const pr = p ? planProgress(p) : null;
+    return { date, pct: pr && pr.total ? pr.done / pr.total : null };
+  });
+  return { streak, week: period(7), month: period(30), days };
+}

@@ -43,3 +43,23 @@ describe("даты и суммы", () => {
     expect(isCategory("drugs")).toBe(false);
   });
 });
+
+import { planStats } from "@/lib/dailyPlan";
+
+describe("статистика плана дня", () => {
+  const p = (date: string, done: number, total: number, energy?: number) => ({
+    date,
+    tasks: Array.from({ length: total }, (_, i) => ({ id: `t${i}` })),
+    done: Object.fromEntries(Array.from({ length: done }, (_, i) => [`t${i}`, true])),
+    feedback: energy ? { energy } : null,
+  });
+  it("серия: незаконченный сегодняшний день не рвёт серию", () => {
+    const s = planStats([p("2026-11-24", 0, 4), p("2026-11-23", 3, 4), p("2026-11-22", 2, 4), p("2026-11-21", 1, 4)], "2026-11-24");
+    expect(s.streak).toBe(2);
+  });
+  it("процент за неделю и энергия", () => {
+    const s = planStats([p("2026-11-24", 2, 4, 4), p("2026-11-23", 4, 4, 2)], "2026-11-24");
+    expect(s.week.pct).toBe(75);
+    expect(s.week.energy).toBe(3);
+  });
+});
