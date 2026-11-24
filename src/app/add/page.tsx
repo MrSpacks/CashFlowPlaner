@@ -9,6 +9,7 @@ export default async function AddPage() {
   await requireUser();
   const { t } = await getI18n();
   const options = [
+    { item: t.add.spend, href: "/spend", icon: "spend" },
     { item: t.add.event, href: "/events/new", icon: "event" },
     { item: t.add.expense, href: "/events", icon: "expense" },
     { item: t.add.income, href: "/more/income", icon: "income" },
@@ -35,6 +36,7 @@ export default async function AddPage() {
 
 /** Иконки пунктов «Добавить» — эмодзи, как у событий. */
 const ICONS = {
+  spend: "💸",
   event: "📅",
   expense: "🧾",
   income: "💵",

@@ -1,6 +1,7 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { balanceSnapshots, fixedExpenses, incomes, incomeSources, oneTimeIncomes, profiles } from "@/db/schema";
+import { balanceSnapshots, budgets, fixedExpenses, incomes, incomeSources, oneTimeIncomes, profiles, spendings } from "@/db/schema";
+import { budgetOutflow } from "./categories";
 import { getItemsWithPayments, listUserEvents, occurrence } from "./events";
 import { getSplitData, sharesOf } from "./split";
 import { addMonths, dateInMonth, todayISO, type ForecastMonth } from "./forecast";
@@ -66,6 +67,28 @@ export async function getFixedExpenses(userId: string) {
 
 const num = (v: string | null | undefined) => (v == null ? null : Number(v));
 
+export async function getBudgets(userId: string) {
+  return db.select().from(budgets).where(eq(budgets.ownerId, userId));
+}
+
+/** Траты с даты from (включительно). */
+export async function getSpendingsFrom(userId: string, from: string) {
+  return db
+    .select({
+      id: spendings.id,
+      date: spendings.date,
+      amount: spendings.amount,
+      currency: spendings.currency,
+      category: spendings.category,
+      note: spendings.note,
+      receiptType: spendings.receiptType,
+      createdAt: spendings.createdAt,
+    })
+    .from(spendings)
+    .where(and(eq(spendings.ownerId, userId), gte(spendings.date, from)))
+    .orderBy(desc(spendings.date), desc(spendings.createdAt));
+}
+
 /**
  * Прогноз по месяцам.
  * Точка отсчёта — последний «стартовый баланс». Учитываются только доходы и расходы
@@ -75,12 +98,15 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
   const profile = await getProfile(userId);
   const base = profile.baseCurrency ?? "CZK";
   const cushion = Number(profile.cushionAmount ?? 0);
-  const [snap, { sources, rows }, fixed, allEvents, oneTime] = await Promise.all([
+  const monthStart = `${todayISO(profile.timezone ?? "Europe/Prague").slice(0, 7)}-01`;
+  const [snap, { sources, rows }, fixed, allEvents, oneTime, budgetRows, spent] = await Promise.all([
     getLatestBalance(userId),
     getIncomeData(userId),
     getFixedExpenses(userId),
     listUserEvents(userId),
     getOneTimeIncomes(userId),
+    getBudgets(userId),
+    getSpendingsFrom(userId, monthStart),
   ]);
   const evs = allEvents.filter((e) => e.status !== "cancelled" && e.status !== "idea");
   const { items, pays } = await getItemsWithPayments(evs.map((e) => e.id));
@@ -91,6 +117,8 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
     ...sources.map((s) => s.currency),
     ...fixed.map((f) => f.currency),
     ...oneTime.map((o) => o.currency),
+    ...budgetRows.map((b) => b.currency),
+    ...spent.map((x) => x.currency),
     ...items.map((i) => i.currency),
     ...pays.map((p) => p.currency),
     ...setts.map((x) => x.currency),
@@ -175,11 +203,24 @@ export async function buildUserForecast(userId: string, monthsAhead = 12) {
       if (d.startsWith(month)) income += toBase(Number(o.amount), o.currency);
     }
 
+    // Постоянные расходы без категории — как раньше, по дню месяца.
+    // С категорией и лимиты бюджета — план категории на месяц: пока трачу меньше — считаем остаток плана,
+    // превысил — считаем фактические траты (см. budgetOutflow).
     let fixedSum = 0;
+    const plan = new Map<string, number>();
     for (const f of fixed) {
       if (f.activeFrom && f.activeFrom.slice(0, 7) > month) continue;
       if (f.activeTo && f.activeTo.slice(0, 7) < month) continue;
-      if (dateInMonth(month, f.dayOfMonth) > cutoff) fixedSum += toBase(Number(f.amount), f.currency);
+      if (f.category) plan.set(f.category, (plan.get(f.category) ?? 0) + toBase(Number(f.amount), f.currency));
+      else if (dateInMonth(month, f.dayOfMonth) > cutoff) fixedSum += toBase(Number(f.amount), f.currency);
+    }
+    for (const b of budgetRows) plan.set(b.category, toBase(Number(b.monthlyLimit), b.currency));
+    const monthSpent = spent.filter((x) => x.date.startsWith(month));
+    const cats = new Set([...plan.keys(), ...monthSpent.map((x) => x.category)]);
+    for (const c of cats) {
+      const before = monthSpent.filter((x) => x.category === c && x.date <= cutoff).reduce((a, x) => a + toBase(Number(x.amount), x.currency), 0);
+      const after = monthSpent.filter((x) => x.category === c && x.date > cutoff).reduce((a, x) => a + toBase(Number(x.amount), x.currency), 0);
+      fixedSum += budgetOutflow(plan.get(c) ?? 0, before, after);
     }
 
     const monthOut = outflows.filter((o) => o.date.startsWith(month));

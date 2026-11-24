@@ -232,6 +232,8 @@ export const fixedExpenses = pgTable("fixed_expenses", {
   amount: money("amount").notNull(),
   currency: char("currency", { length: 3 }).default("CZK").notNull(),
   dayOfMonth: integer("day_of_month"),
+  /** Категория бюджета (food, home…). С категорией расход — это план на месяц, с которым сравниваются траты. */
+  category: text("category"),
   activeFrom: date("active_from"),
   activeTo: date("active_to"),
   createdAt: created(),
@@ -532,3 +534,34 @@ export const tripSettings = pgTable("trip_settings", {
   hiddenWeekend: date("hidden_weekend"),
   createdAt: created(),
 });
+
+// ---------- траты и бюджет ----------
+/** Фактическая трата: сколько, когда, на что. Только владельцу. */
+export const spendings = pgTable(
+  "spendings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    ownerId: text("owner_id").notNull(),
+    date: date("date").notNull(),
+    amount: money("amount").notNull(),
+    currency: char("currency", { length: 3 }).default("CZK").notNull(),
+    category: text("category").default("other").notNull(),
+    note: text("note"),
+    receipt: bytea("receipt"),
+    receiptType: text("receipt_type"),
+    createdAt: created(),
+  },
+  (t) => [index("spendings_owner_date_idx").on(t.ownerId, t.date)],
+);
+
+/** Лимит на месяц по категории. */
+export const budgets = pgTable(
+  "budgets",
+  {
+    ownerId: text("owner_id").notNull(),
+    category: text("category").notNull(),
+    monthlyLimit: money("monthly_limit").notNull(),
+    currency: char("currency", { length: 3 }).default("CZK").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.ownerId, t.category] })],
+);

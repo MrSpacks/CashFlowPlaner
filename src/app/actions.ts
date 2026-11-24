@@ -28,6 +28,8 @@ import {
   payments,
   personalReminders,
   personalReminderSends,
+  spendings,
+  budgets,
   investmentAccounts,
   profiles,
   pushSubscriptions,
@@ -40,6 +42,7 @@ import { getI18n } from "@/i18n/server";
 import { auth, requireUser } from "@/lib/auth";
 import { EVENT_PRIORITIES, EVENT_STATUSES, EVENT_TYPES, getDefaultCalendarId, getEditableEvent } from "@/lib/events";
 import { cleanTimes } from "@/lib/personalReminders";
+import { isCategory } from "@/lib/categories";
 import { canUseInvest, encrypt, refreshSnapshot } from "@/lib/invest";
 import { canUseDailyPlan } from "@/lib/dailyPlan";
 import {
@@ -157,7 +160,26 @@ export async function addFixedExpense(fd: FormData) {
     amount: amount.toFixed(2),
     currency: currency(fd),
     dayOfMonth: day(fd, "day"),
+    category: isCategory(str(fd, "category")) ? str(fd, "category") : null,
   });
+  revalidatePath("/", "layout");
+}
+
+export async function updateFixedExpense(fd: FormData) {
+  const user = await requireUser();
+  const amount = parseAmount(fd.get("amount"));
+  const name = str(fd, "name");
+  if (amount == null || !name) return;
+  await db
+    .update(fixedExpenses)
+    .set({
+      name,
+      amount: amount.toFixed(2),
+      currency: currency(fd),
+      dayOfMonth: day(fd, "day"),
+      category: isCategory(str(fd, "category")) ? str(fd, "category") : null,
+    })
+    .where(and(eq(fixedExpenses.id, str(fd, "id")), eq(fixedExpenses.ownerId, user.id)));
   revalidatePath("/", "layout");
 }
 
@@ -182,6 +204,24 @@ export async function addIncomeSource(fd: FormData) {
     isFixed,
     defaultAmount: amount == null ? null : amount.toFixed(2),
   });
+  revalidatePath("/", "layout");
+}
+
+export async function updateIncomeSource(fd: FormData) {
+  const user = await requireUser();
+  const name = str(fd, "name");
+  if (!name) return;
+  const amount = parseAmount(fd.get("amount"));
+  await db
+    .update(incomeSources)
+    .set({
+      name,
+      currency: currency(fd),
+      payDay: day(fd, "payDay"),
+      isFixed: fd.get("isFixed") === "on",
+      defaultAmount: amount == null ? null : amount.toFixed(2),
+    })
+    .where(and(eq(incomeSources.id, str(fd, "id")), eq(incomeSources.ownerId, user.id)));
   revalidatePath("/", "layout");
 }
 
@@ -1052,5 +1092,82 @@ export async function refreshTripsNow() {
   const last = await lastTripRefresh();
   if (last && Date.now() - last.getTime() < 10 * 60 * 1000) return;
   await refreshTripDeals();
+  revalidatePath("/", "layout");
+}
+
+// ---------- траты и бюджет ----------
+/** Фото чека: уменьшенное на клиенте JPEG до ~400 КБ. */
+async function receiptFrom(fd: FormData) {
+  const f = fd.get("receipt");
+  if (!(f instanceof File) || f.size === 0) return null;
+  if (f.size > 1_500_000 || !/^image\/(jpeg|png|webp)$/.test(f.type)) return null;
+  return { receipt: Buffer.from(await f.arrayBuffer()), receiptType: f.type };
+}
+
+export async function addSpending(fd: FormData) {
+  const user = await requireUser();
+  const amount = parseAmount(fd.get("amount"));
+  if (amount == null || amount <= 0) return;
+  const cat = str(fd, "category");
+  const r = await receiptFrom(fd);
+  await db.insert(spendings).values({
+    ownerId: user.id,
+    amount: amount.toFixed(2),
+    currency: currency(fd),
+    category: isCategory(cat) ? cat : "other",
+    date: isoOrNull(fd, "date") ?? todayISO(),
+    note: str(fd, "note").slice(0, 120) || null,
+    ...(r ?? {}),
+  });
+  revalidatePath("/", "layout");
+}
+
+export async function updateSpending(fd: FormData) {
+  const user = await requireUser();
+  const amount = parseAmount(fd.get("amount"));
+  if (amount == null || amount <= 0) return;
+  const cat = str(fd, "category");
+  const r = await receiptFrom(fd);
+  await db
+    .update(spendings)
+    .set({
+      amount: amount.toFixed(2),
+      currency: currency(fd),
+      category: isCategory(cat) ? cat : "other",
+      date: isoOrNull(fd, "date") ?? todayISO(),
+      note: str(fd, "note").slice(0, 120) || null,
+      ...(r ?? {}),
+    })
+    .where(and(eq(spendings.id, str(fd, "id")), eq(spendings.ownerId, user.id)));
+  revalidatePath("/", "layout");
+  const back = str(fd, "back");
+  if (back.startsWith("/spend")) redirect(back);
+}
+
+export async function deleteSpending(fd: FormData) {
+  const user = await requireUser();
+  await db.delete(spendings).where(and(eq(spendings.id, str(fd, "id")), eq(spendings.ownerId, user.id)));
+  revalidatePath("/", "layout");
+  const back = str(fd, "back");
+  if (back.startsWith("/spend")) redirect(back);
+}
+
+export async function saveBudgets(fd: FormData) {
+  const user = await requireUser();
+  const cur = currency(fd);
+  for (const [k, v] of fd.entries()) {
+    if (!k.startsWith("limit_")) continue;
+    const cat = k.slice(6);
+    if (!isCategory(cat)) continue;
+    const amount = parseAmount(v);
+    if (amount == null || amount <= 0) {
+      await db.delete(budgets).where(and(eq(budgets.ownerId, user.id), eq(budgets.category, cat)));
+    } else {
+      await db
+        .insert(budgets)
+        .values({ ownerId: user.id, category: cat, monthlyLimit: amount.toFixed(2), currency: cur })
+        .onConflictDoUpdate({ target: [budgets.ownerId, budgets.category], set: { monthlyLimit: amount.toFixed(2), currency: cur } });
+    }
+  }
   revalidatePath("/", "layout");
 }

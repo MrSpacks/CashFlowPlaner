@@ -9,6 +9,7 @@ import { formatMoney, monthLabel, todayISO } from "@/lib/forecast";
 import { getReminders } from "@/lib/reminders";
 import { canUseDailyPlan, getDailyPlan, planProgress, userToday } from "@/lib/dailyPlan";
 import { canUseInvest, latestSnapshot } from "@/lib/invest";
+import { monthBudget } from "@/lib/spending";
 import { canUseTrips, getTripPrefs, listTripOptions, upcomingWeekends, type TripOption } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,18 @@ export default async function ForecastPage() {
   // Ряд плиток сверху: план дня, инвестиции, билеты. Каждая ведёт в свой раздел.
   const tileCls = "flex min-w-0 flex-col rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 active:bg-slate-50";
   const tiles: React.ReactNode[] = [];
+  const spend = await monthBudget(user.id, todayISO().slice(0, 7));
+  tiles.push(
+    <Link key="spend" href="/spend" className={tileCls}>
+      <span className="truncate text-xs text-slate-500">💸 {t.sp.tile}</span>
+      <span className="mt-1 truncate text-base font-semibold tabular-nums">{formatMoney(spend.total, spend.base, intl)}</span>
+      {spend.totalPlan > 0 && (
+        <span className={`truncate text-xs tabular-nums ${spend.total > spend.totalPlan ? "text-rose-600" : "text-slate-500"}`}>
+          / {formatMoney(spend.totalPlan, spend.base, intl)}
+        </span>
+      )}
+    </Link>,
+  );
   if (plan && planProg) {
     tiles.push(
       <Link key="plan" href="/plan" className={tileCls}>
@@ -76,7 +89,7 @@ export default async function ForecastPage() {
     );
   }
   const tilesRow = tiles.length > 0 && (
-    <div className={`mx-4 mb-4 grid gap-2 ${tiles.length === 1 ? "grid-cols-1" : tiles.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>{tiles}</div>
+    <div className={`mx-4 mb-4 grid gap-2 ${tiles.length === 1 ? "grid-cols-1" : tiles.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>{tiles}</div>
   );
   const money = (n: number) => formatMoney(n, f.base, intl);
 

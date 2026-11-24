@@ -1,4 +1,4 @@
-import { addIncomeSource, addOneTimeIncome, deleteIncomeSource, deleteOneTimeIncome, saveIncomeMonth } from "@/app/actions";
+import { addIncomeSource, addOneTimeIncome, updateIncomeSource, deleteIncomeSource, deleteOneTimeIncome, saveIncomeMonth } from "@/app/actions";
 import DatePicker, { DayOfMonthPicker } from "@/components/DatePicker";
 import PageHeader from "@/components/PageHeader";
 import { BackLink, btnCls, Card, CurrencySelect, inputCls, labelCls, listCls, XIcon } from "@/components/ui";
@@ -40,11 +40,43 @@ export default async function IncomePage() {
                   {s.payDay ? ` · ${t.income.payDay}: ${s.payDay}` : ""}
                 </p>
               </div>
-              <form action={deleteIncomeSource}>
-                <input type="hidden" name="id" value={s.id} />
-                <button className="text-xs text-slate-400 active:text-rose-600">{t.income.deleteSource}</button>
-              </form>
             </div>
+            <details className="group mb-3">
+              <summary className="cursor-pointer list-none text-xs font-medium text-emerald-700 [&::-webkit-details-marker]:hidden">✎ {t.sp.edit}</summary>
+              <div className="mt-2 space-y-3 rounded-xl bg-slate-50 p-3">
+                <form action={updateIncomeSource} className="space-y-3">
+                  <input type="hidden" name="id" value={s.id} />
+                  <div>
+                    <label className={labelCls}>{t.income.name}</label>
+                    <input name="name" required defaultValue={s.name} className={inputCls} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={labelCls}>{t.income.payDay}</label>
+                      <DayOfMonthPicker name="payDay" defaultValue={s.payDay} labels={dayLabels(t)} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>{t.common.currency}</label>
+                      <CurrencySelect defaultValue={s.currency} />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="isFixed" defaultChecked={s.isFixed} className="h-5 w-5 accent-emerald-600" />
+                    {t.income.fixed}
+                  </label>
+                  <div>
+                    <label className={labelCls}>{t.income.defaultAmount}</label>
+                    <input name="amount" inputMode="decimal" defaultValue={s.defaultAmount ? Number(s.defaultAmount) : ""} className={inputCls} />
+                  </div>
+                  <button className={`${btnCls} w-full`}>{t.sp.save}</button>
+                </form>
+                <form action={deleteIncomeSource}>
+                  <button name="id" value={s.id} className="w-full rounded-xl py-2 text-sm text-rose-600 ring-1 ring-slate-300">
+                    {t.income.deleteSource}
+                  </button>
+                </form>
+              </div>
+            </details>
 
             <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-center gap-x-2 gap-y-1 text-xs text-slate-500">
               <span />
