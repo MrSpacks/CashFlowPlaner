@@ -113,7 +113,7 @@ const shiftDay = (iso: string, n: number) => {
  * выполнение и средняя энергия за 7 и 30 дней, проценты по дням для графика.
  */
 export function planStats(
-  plans: { date: string; tasks: { id: string }[]; done: Record<string, boolean>; feedback?: { energy?: number } | null }[],
+  plans: { date: string; tasks: { id: string }[]; done: Record<string, boolean>; feedback?: { energy?: number | null } | null }[],
   today: string,
 ) {
   const by = new Map(plans.map((p) => [p.date, p]));
