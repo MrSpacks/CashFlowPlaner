@@ -2,6 +2,7 @@
 
 import { useOptimistic, useTransition } from "react";
 import { toggleDailyTask } from "@/app/actions";
+import Confetti from "@/components/Confetti";
 import type { DailyTask } from "@/db/schema";
 
 type Labels = { progress: string; minutes: string };
@@ -31,9 +32,10 @@ export default function DailyTasks({
 
   return (
     <div className="space-y-2">
+      {tasks.length > 0 && count === tasks.length && <Confetti onceKey={`plan-${planId}`} />}
       <div className="flex items-center gap-3">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
-          <div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${pct}%` }} />
+          <div className="cfp-bar h-full rounded-full bg-emerald-500 transition-[width] duration-500" style={{ width: `${pct}%` }} />
         </div>
         <span className="text-sm tabular-nums text-slate-500">
           {labels.progress.replace("{done}", String(count)).replace("{total}", String(tasks.length))}
@@ -45,15 +47,16 @@ export default function DailyTasks({
           return (
             <li key={t.id}>
               <label
-                className={`flex cursor-pointer items-start gap-3 rounded-2xl p-4 ring-1 ${
+                className={`flex cursor-pointer items-start gap-3 rounded-2xl p-4 ring-1 transition-colors duration-300 ${
                   checked ? "bg-emerald-50 ring-emerald-200" : "bg-white ring-slate-200"
                 }`}
               >
                 <input
+                  key={checked ? "on" : "off"}
                   type="checkbox"
                   checked={checked}
                   onChange={(e) => toggle(t.id, e.target.checked)}
-                  className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-600"
+                  className={`mt-0.5 h-5 w-5 shrink-0 accent-emerald-600 ${checked ? "cfp-pop" : ""}`}
                 />
                 <span className="min-w-0 flex-1">
                   <span className={`block font-medium ${checked ? "text-slate-500 line-through" : "text-slate-900"}`}>{t.title}</span>

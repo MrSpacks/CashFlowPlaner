@@ -1,4 +1,6 @@
 import { addGoal, deleteGoal, depositToGoal, updateGoal } from "@/app/actions";
+import Confetti from "@/components/Confetti";
+import CountUp from "@/components/CountUp";
 import DatePicker from "@/components/DatePicker";
 import PageHeader from "@/components/PageHeader";
 import { btnCls, btnGhostCls, Card, CurrencySelect, inputCls, labelCls } from "@/components/ui";
@@ -76,7 +78,9 @@ export default async function WealthPage() {
       <div className="space-y-4 px-4">
         <Card>
           <p className="text-sm text-slate-500">{t.wl.total}</p>
-          <p className="text-3xl font-bold tabular-nums">{m(w.total)}</p>
+          <p className="text-3xl font-bold tabular-nums">
+            <CountUp value={w.total} currency={w.base} locale={intl} />
+          </p>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
             <span>
               <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm bg-emerald-500" />
@@ -102,8 +106,8 @@ export default async function WealthPage() {
                   const x = i * bw + bw * 0.15;
                   return (
                     <g key={h.month}>
-                      <rect x={x} y={H - bh} width={bw * 0.7} height={bh} rx={0.8} className="fill-emerald-500" />
-                      {ih > 0 && <rect x={x} y={H - bh - ih} width={bw * 0.7} height={ih} rx={0.8} className="fill-sky-500" />}
+                      <rect x={x} y={H - bh} width={bw * 0.7} height={bh} rx={0.8} className="cfp-col fill-emerald-500" style={{ animationDelay: `${i * 40}ms` }} />
+                      {ih > 0 && <rect x={x} y={H - bh - ih} width={bw * 0.7} height={ih} rx={0.8} className="cfp-col fill-sky-500" style={{ animationDelay: `${i * 40 + 120}ms` }} />}
                     </g>
                   );
                 })}
@@ -125,6 +129,7 @@ export default async function WealthPage() {
               const pct = g.targetBase > 0 ? Math.min(100, (g.savedBase / g.targetBase) * 100) : 0;
               return (
                 <Card key={g.id}>
+                  {g.left <= 0 && <Confetti onceKey={`goal-${g.id}`} />}
                   <div className="flex items-start justify-between gap-2">
                     <p className="min-w-0 truncate text-lg font-semibold">
                       {g.emoji} {g.title}
@@ -132,7 +137,7 @@ export default async function WealthPage() {
                     <span className="shrink-0 text-sm font-medium tabular-nums text-slate-500">{Math.round(pct)} %</span>
                   </div>
                   <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                    <div className={`h-full rounded-full ${pct >= 100 ? "bg-emerald-500" : "bg-sky-500"}`} style={{ width: `${pct}%` }} />
+                    <div className={`cfp-bar h-full rounded-full ${pct >= 100 ? "bg-emerald-500" : "bg-sky-500"}`} style={{ width: `${pct}%` }} />
                   </div>
                   <p className="mt-1 text-sm tabular-nums">
                     <b>{m(g.savedBase)}</b> <span className="text-slate-400">{t.wl.of} {m(g.targetBase)}</span>

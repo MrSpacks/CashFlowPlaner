@@ -12,7 +12,7 @@ export default async function PendingReminders({ userId, t }: { userId: string; 
         <form
           key={`${p.reminderId}-${p.slot}`}
           action={markPersonalReminderDone}
-          className="flex items-center justify-between gap-3 rounded-2xl bg-[#e11d48] p-4 text-[#fff] shadow-lg"
+          className="cfp-attention flex items-center justify-between gap-3 rounded-2xl bg-[#e11d48] p-4 text-[#fff] shadow-lg"
         >
           <input type="hidden" name="id" value={p.reminderId} />
           <input type="hidden" name="slot" value={p.slot} />

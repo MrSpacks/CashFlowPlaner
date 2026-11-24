@@ -138,14 +138,14 @@ export default async function DailyPlanPage({ searchParams }: { searchParams: Pr
               </div>
             </div>
             <div className="mt-3 flex h-12 items-end gap-[2px]">
-              {stats.days.map((d) => (
+              {stats.days.map((d, i) => (
                 <span
                   key={d.date}
                   title={d.date}
-                  className={`flex-1 rounded-sm ${
+                  className={`cfp-col flex-1 rounded-sm ${
                     d.pct == null ? "bg-slate-100" : d.pct >= 1 ? "bg-emerald-500" : d.pct >= 0.5 ? "bg-emerald-300" : d.pct > 0 ? "bg-amber-400" : "bg-rose-300"
                   }`}
-                  style={{ height: d.pct == null ? "15%" : `${Math.max(15, d.pct * 100)}%` }}
+                  style={{ height: d.pct == null ? "15%" : `${Math.max(15, d.pct * 100)}%`, animationDelay: `${i * 20}ms` }}
                 />
               ))}
             </div>

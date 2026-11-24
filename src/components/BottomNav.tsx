@@ -152,10 +152,11 @@ export default function BottomNav({
                   }`}
                 >
                   <span
+                    key={active ? "on" : "off"}
                     className={
                       primary
-                        ? "-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30"
-                        : "flex h-7 w-7 items-center justify-center"
+                        ? "-mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 transition-transform duration-200 active:scale-90 active:rotate-90"
+                        : `flex h-7 w-7 items-center justify-center ${active ? "cfp-bounce" : ""}`
                     }
                   >
                     <Icon k={it.key} />

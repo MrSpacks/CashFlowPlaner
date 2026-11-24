@@ -37,7 +37,7 @@ export default async function ForecastPage() {
   }
 
   // Ряд плиток сверху: план дня, инвестиции, билеты. Каждая ведёт в свой раздел.
-  const tileCls = "flex min-w-0 flex-col rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 active:bg-slate-50";
+  const tileCls = "cfp-lift cfp-press flex min-w-0 flex-col rounded-2xl bg-white p-3 shadow-sm ring-1 ring-slate-200 active:bg-slate-50";
   const tiles: React.ReactNode[] = [];
   const spend = await monthBudget(user.id, todayISO().slice(0, 7));
   tiles.push(
@@ -105,7 +105,7 @@ export default async function ForecastPage() {
     );
   }
   const tilesRow = tiles.length > 0 && (
-    <div className={`mx-4 mb-4 grid gap-2 ${tiles.length === 1 ? "grid-cols-1" : tiles.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>{tiles}</div>
+    <div className={`cfp-stagger mx-4 mb-4 grid gap-2 ${tiles.length === 1 ? "grid-cols-1" : tiles.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>{tiles}</div>
   );
   const money = (n: number) => formatMoney(n, f.base, intl);
 

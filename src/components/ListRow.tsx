@@ -19,7 +19,7 @@ export function ListRow({
   right?: React.ReactNode;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-3 px-3 py-3 active:bg-slate-50">
+    <Link href={href} className="cfp-press flex items-center gap-3 px-3 py-3 transition-colors active:bg-slate-50">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-xl">{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{title}</p>

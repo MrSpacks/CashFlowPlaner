@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { addSpending, saveBudgets } from "@/app/actions";
 import CategoryPicker from "@/components/CategoryPicker";
+import CountUp from "@/components/CountUp";
 import DatePicker from "@/components/DatePicker";
 import { ListGroup, ListRow } from "@/components/ListRow";
 import PageHeader from "@/components/PageHeader";
@@ -61,11 +62,13 @@ export default async function SpendPage({ searchParams }: { searchParams: Promis
               </span>
             )}
           </div>
-          <p className="text-3xl font-bold tabular-nums">{m(b.total)}</p>
+          <p className="text-3xl font-bold tabular-nums">
+            <CountUp value={b.total} currency={b.base} locale={intl} />
+          </p>
           {b.totalPlan > 0 && (
             <>
               <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
-                <div className={`h-full rounded-full ${barCls(b.total, b.totalPlan)}`} style={{ width: `${pct}%` }} />
+                <div className={`cfp-bar h-full rounded-full ${barCls(b.total, b.totalPlan)}`} style={{ width: `${pct}%` }} />
               </div>
               <p className={`mt-1 text-sm ${b.total > b.totalPlan ? "text-rose-600" : "text-slate-500"}`}>
                 {b.total > b.totalPlan ? t.sp.over.replace("{x}", m(b.total - b.totalPlan)) : t.sp.left.replace("{x}", m(b.totalPlan - b.total))}
@@ -87,7 +90,7 @@ export default async function SpendPage({ searchParams }: { searchParams: Promis
                   </div>
                   {r.plan > 0 && (
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                      <div className={`h-full rounded-full ${barCls(r.spent, r.plan)}`} style={{ width: `${Math.min(100, (r.spent / r.plan) * 100)}%` }} />
+                      <div className={`cfp-bar h-full rounded-full ${barCls(r.spent, r.plan)}`} style={{ width: `${Math.min(100, (r.spent / r.plan) * 100)}%` }} />
                     </div>
                   )}
                 </li>
