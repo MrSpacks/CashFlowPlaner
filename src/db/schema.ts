@@ -565,3 +565,17 @@ export const budgets = pgTable(
   },
   (t) => [primaryKey({ columns: [t.ownerId, t.category] })],
 );
+
+/** Цель накоплений. source: manual — сумма вручную; balance — прогресс = баланс счёта; invest — портфель Trading 212. */
+export const savingsGoals = pgTable("savings_goals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerId: text("owner_id").notNull(),
+  title: text("title").notNull(),
+  emoji: text("emoji").default("🎯").notNull(),
+  target: money("target").notNull(),
+  currency: char("currency", { length: 3 }).default("CZK").notNull(),
+  saved: money("saved").default("0").notNull(),
+  source: text("source").default("manual").notNull(),
+  deadline: date("deadline"),
+  createdAt: created(),
+});

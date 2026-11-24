@@ -10,6 +10,7 @@ import { getReminders } from "@/lib/reminders";
 import { canUseDailyPlan, getDailyPlan, planProgress, userToday } from "@/lib/dailyPlan";
 import { canUseInvest, latestSnapshot } from "@/lib/invest";
 import { monthBudget } from "@/lib/spending";
+import { getWealth } from "@/lib/wealth";
 import { canUseTrips, getTripPrefs, listTripOptions, upcomingWeekends, type TripOption } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +58,21 @@ export default async function ForecastPage() {
         <span className="mt-1 text-lg font-semibold tabular-nums">
           {planProg.done}/{planProg.total}
         </span>
+      </Link>,
+    );
+  }
+  const wealth = await getWealth(user.id);
+  if (wealth.total > 0 || wealth.goals.length > 0) {
+    const g = wealth.goals.find((x) => x.left > 0);
+    tiles.push(
+      <Link key="wealth" href="/wealth" className={tileCls}>
+        <span className="truncate text-xs text-slate-500">💰 {t.wl.tile}</span>
+        <span className="mt-1 truncate text-base font-semibold tabular-nums">{formatMoney(wealth.total, wealth.base, intl)}</span>
+        {g && (
+          <span className="truncate text-xs text-slate-500">
+            {g.emoji} {Math.round((g.savedBase / g.targetBase) * 100)} %
+          </span>
+        )}
       </Link>,
     );
   }

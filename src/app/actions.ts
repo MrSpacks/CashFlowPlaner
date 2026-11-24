@@ -30,6 +30,7 @@ import {
   personalReminderSends,
   spendings,
   budgets,
+  savingsGoals,
   investmentAccounts,
   profiles,
   pushSubscriptions,
@@ -1169,5 +1170,58 @@ export async function saveBudgets(fd: FormData) {
         .onConflictDoUpdate({ target: [budgets.ownerId, budgets.category], set: { monthlyLimit: amount.toFixed(2), currency: cur } });
     }
   }
+  revalidatePath("/", "layout");
+}
+
+// ---------- цели накоплений ----------
+const GOAL_SOURCES = ["manual", "balance", "invest"] as const;
+function goalFields(fd: FormData) {
+  const target = parseAmount(fd.get("target"));
+  const saved = parseAmount(fd.get("saved"));
+  return {
+    title: str(fd, "title").slice(0, 60),
+    emoji: (str(fd, "emoji") || "🎯").slice(0, 8),
+    target: target == null ? null : target.toFixed(2),
+    saved: (saved ?? 0).toFixed(2),
+    currency: currency(fd),
+    source: pick(str(fd, "source"), GOAL_SOURCES, "manual"),
+    deadline: isoOrNull(fd, "deadline"),
+  };
+}
+
+export async function addGoal(fd: FormData) {
+  const user = await requireUser();
+  const f = goalFields(fd);
+  if (!f.title || !f.target) return;
+  await db.insert(savingsGoals).values({ ownerId: user.id, ...f, target: f.target });
+  revalidatePath("/", "layout");
+}
+
+export async function updateGoal(fd: FormData) {
+  const user = await requireUser();
+  const f = goalFields(fd);
+  if (!f.title || !f.target) return;
+  await db
+    .update(savingsGoals)
+    .set({ ...f, target: f.target })
+    .where(and(eq(savingsGoals.id, str(fd, "id")), eq(savingsGoals.ownerId, user.id)));
+  revalidatePath("/", "layout");
+}
+
+/** «Отложить» — прибавить сумму к ручной цели. */
+export async function depositToGoal(fd: FormData) {
+  const user = await requireUser();
+  const amount = parseAmount(fd.get("amount"));
+  if (amount == null || amount === 0) return;
+  await db
+    .update(savingsGoals)
+    .set({ saved: sql`${savingsGoals.saved} + ${amount.toFixed(2)}` })
+    .where(and(eq(savingsGoals.id, str(fd, "id")), eq(savingsGoals.ownerId, user.id)));
+  revalidatePath("/", "layout");
+}
+
+export async function deleteGoal(fd: FormData) {
+  const user = await requireUser();
+  await db.delete(savingsGoals).where(and(eq(savingsGoals.id, str(fd, "id")), eq(savingsGoals.ownerId, user.id)));
   revalidatePath("/", "layout");
 }
