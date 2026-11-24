@@ -60,8 +60,8 @@ const escapeHtml = (v: string) => v.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "
 /** Отправить письмо через Resend API. Без ключа — тихо ничего не делаем. */
 export async function sendMail(to: string, subject: string, html: string) {
   const key = process.env.RESEND_API_KEY;
-  if (!key) return false;
-  const from = process.env.MAIL_FROM ?? "CashFlowPlaner <noreply@3dprintshare.xyz>";
+  const from = process.env.MAIL_FROM; // адрес с доменом этого приложения, например "CashFlowPlaner <noreply@домен>"
+  if (!key || !from) return false;
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -69,7 +69,7 @@ export async function sendMail(to: string, subject: string, html: string) {
   });
   return r.ok;
 }
-export const mailEnabled = Boolean(process.env.RESEND_API_KEY);
+export const mailEnabled = Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM);
 
 export async function getSession() {
   return auth.api.getSession({ headers: await headers() });
