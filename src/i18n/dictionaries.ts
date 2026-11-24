@@ -434,6 +434,14 @@ const ru = {
     deposit: "Отложить",
     tile: "Капитал",
   },
+  srch: {
+    title: "Поиск",
+    placeholder: "Событие, расход, трата…",
+    min: "Введите хотя бы 2 буквы.",
+    none: "Ничего не нашлось.",
+    events: "События и идеи",
+    expenses: "Расходы в событиях",
+  },
   prm: {
     title: "Мои напоминания",
     hint: "Например, таблетки: в нужные часы каждый день придёт уведомление на телефон, а в приложении будет висеть красная плашка, пока не отметите «Готово».",
@@ -503,7 +511,7 @@ const ru = {
     clearAll: "Очистить",
   },
   of: {
-    offline: "Нет интернета — новые события сохранятся на телефоне и отправятся при подключении.",
+    offline: "Нет интернета — новые события, траты и отметки «оплачено» сохранятся на телефоне и отправятся при подключении.",
     queued: (n: number) => `Ждут отправки: ${n}`,
     synced: (n: number) => `Отправлено на сервер: ${n}`,
     savedOffline: "Сохранено на телефоне — отправится, когда появится интернет.",
@@ -940,6 +948,14 @@ const cs: Dict = {
     deposit: "Odložit",
     tile: "Majetek",
   },
+  srch: {
+    title: "Hledat",
+    placeholder: "Událost, výdaj, útrata…",
+    min: "Zadejte aspoň 2 písmena.",
+    none: "Nic se nenašlo.",
+    events: "Události a nápady",
+    expenses: "Výdaje v událostech",
+  },
   prm: {
     title: "Moje připomínky",
     hint: "Třeba prášky: ve zvolené časy každý den přijde upozornění na telefon a v aplikaci bude svítit červený pruh, dokud neoznačíte „Hotovo“.",
@@ -1009,7 +1025,7 @@ const cs: Dict = {
     clearAll: "Vymazat",
   },
   of: {
-    offline: "Nejste online — nové události se uloží v telefonu a odešlou se po připojení.",
+    offline: "Nejste online — nové události, útraty a označení „zaplaceno“ se uloží v telefonu a odešlou se po připojení.",
     queued: (n: number) => `Čeká na odeslání: ${n}`,
     synced: (n: number) => `Odesláno na server: ${n}`,
     savedOffline: "Uloženo v telefonu — odešle se, až bude internet.",
@@ -1444,6 +1460,14 @@ const en: Dict = {
     deposit: "Put aside",
     tile: "Net worth",
   },
+  srch: {
+    title: "Search",
+    placeholder: "Event, expense, spending…",
+    min: "Type at least 2 letters.",
+    none: "Nothing found.",
+    events: "Events & ideas",
+    expenses: "Event expenses",
+  },
   prm: {
     title: "My reminders",
     hint: "E.g. pills: at the chosen times every day you get a phone notification, and a red bar stays in the app until you tap “Done”.",
@@ -1513,7 +1537,7 @@ const en: Dict = {
     clearAll: "Clear",
   },
   of: {
-    offline: "You're offline — new events are saved on the phone and sent once you reconnect.",
+    offline: "You're offline — new events, spending and “paid” marks are saved on the phone and sent once you reconnect.",
     queued: (n: number) => `Waiting to send: ${n}`,
     synced: (n: number) => `Sent to server: ${n}`,
     savedOffline: "Saved on the phone — will be sent when you're online.",

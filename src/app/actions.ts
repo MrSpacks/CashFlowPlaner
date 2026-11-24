@@ -335,6 +335,18 @@ export async function syncOfflineEvent(entries: [string, string][]) {
   return id;
 }
 
+/** Отправка того, что сохранили без интернета: событие, трата, расход в событии, отметка «оплачено». */
+export async function syncOffline(kind: string, entries: [string, string][]) {
+  if (kind === "event") return syncOfflineEvent(entries);
+  await requireUser();
+  const fd = new FormData();
+  for (const [k, v] of entries.slice(0, 50)) fd.append(String(k), String(v).slice(0, 2000));
+  if (kind === "spending") await addSpending(fd);
+  else if (kind === "expense") await addExpenseItem(fd);
+  else if (kind === "paid") await toggleExpensePaid(fd);
+  return "ok";
+}
+
 export async function updateEvent(fd: FormData) {
   const user = await requireUser();
   const ev = await getEditableEvent(str(fd, "id"), user.id);

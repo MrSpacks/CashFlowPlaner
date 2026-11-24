@@ -5,7 +5,7 @@ import { ListGroup, ListRow } from "@/components/ListRow";
 import Avatar from "@/components/Avatar";
 import PageHeader from "@/components/PageHeader";
 import PushToggle from "@/components/PushToggle";
-import { btnGhostCls, cardCls } from "@/components/ui";
+import { btnGhostCls, cardCls, inputCls } from "@/components/ui";
 import { getDb } from "@/db";
 import { LANGUAGE_NAMES, LOCALES } from "@/i18n/dictionaries";
 import { getI18n, getTheme } from "@/i18n/server";
@@ -56,6 +56,9 @@ export default async function MorePage() {
         <span className="text-sm text-emerald-700">{t.pr.title} →</span>
       </Link>
 
+      <form action="/search" className="mx-4 mb-4">
+        <input name="q" type="search" placeholder={`🔍 ${t.srch.placeholder}`} className={inputCls} />
+      </form>
       <div className="mx-4 mb-4">
         <ListGroup>
           {canUseDailyPlan(user.id) && <li><ListRow href="/plan" icon="📋" title={t.dp.menu} /></li>}

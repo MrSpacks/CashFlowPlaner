@@ -9,7 +9,7 @@ import { canUseInvest } from "./invest";
  * Общий капитал: баланс счёта + портфель (если подключён), история по месяцам (последний снимок месяца)
  * и цели накоплений с прогрессом и оценкой даты достижения.
  */
-export async function getWealth(userId: string) {
+export async function getWealth(userId: string, prebuilt?: Awaited<ReturnType<typeof buildUserForecast>>) {
   const profile = await getProfile(userId);
   const base = profile.baseCurrency ?? "CZK";
   const invOk = canUseInvest(userId);
@@ -23,7 +23,7 @@ export async function getWealth(userId: string) {
           .orderBy(desc(investmentSnapshots.takenAt))
       : Promise.resolve([] as { takenAt: Date; totalValue: string; currency: string }[]),
     db.select().from(savingsGoals).where(eq(savingsGoals.ownerId, userId)).orderBy(savingsGoals.createdAt),
-    buildUserForecast(userId, 12),
+    prebuilt ?? buildUserForecast(userId, 12),
   ]);
   const need = [...bal, ...inv, ...goals].some((x) => x.currency !== base);
   const rates = need ? await getRates(base) : {};

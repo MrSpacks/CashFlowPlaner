@@ -14,6 +14,7 @@ import {
 } from "@/app/actions";
 import DatePicker from "@/components/DatePicker";
 import EventForm from "@/components/EventForm";
+import OfflineForm from "@/components/OfflineForm";
 import QrCode from "@/components/QrCode";
 import ShareLink from "@/components/ShareLink";
 import SplitEditor from "@/components/SplitEditor";
@@ -176,7 +177,7 @@ export default async function EventPage({
                 ].filter(Boolean);
                 return (
                   <li key={it.id} className="flex items-center gap-3 px-3 py-2.5">
-                    <form action={toggleExpensePaid}>
+                    <OfflineForm action={toggleExpensePaid} kind="paid" quiet label={`✓ ${it.title}`}>
                       <input type="hidden" name="id" value={it.id} />
                       <button
                         aria-label={isPaid ? t.ev.markUnpaid : t.ev.markPaid}
@@ -190,7 +191,7 @@ export default async function EventPage({
                           </svg>
                         )}
                       </button>
-                    </form>
+                    </OfflineForm>
                     <Link
                       href={canEdit ? `/events/${ev.id}/items/${it.id}` : "#"}
                       aria-label={t.ev.editExpense}
@@ -227,7 +228,7 @@ export default async function EventPage({
         {canEdit && (
         <Card>
           <h2 className="mb-3 font-semibold">{t.ev.addExpense}</h2>
-          <form action={addExpenseItem} className="space-y-3">
+          <OfflineForm action={addExpenseItem} className="space-y-3" kind="expense" savedText={t.of.savedOffline}>
             <input type="hidden" name="eventId" value={ev.id} />
             <div>
               <label className={labelCls}>{t.ev.expenseName}</label>
@@ -276,7 +277,7 @@ export default async function EventPage({
               {t.ev.estimate}
             </label>
             <button className={`${btnCls} w-full`}>{t.common.add}</button>
-          </form>
+          </OfflineForm>
         </Card>
         )}
 

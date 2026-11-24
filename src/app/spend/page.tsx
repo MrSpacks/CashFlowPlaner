@@ -4,6 +4,7 @@ import CategoryPicker from "@/components/CategoryPicker";
 import DatePicker from "@/components/DatePicker";
 import { ListGroup, ListRow } from "@/components/ListRow";
 import PageHeader from "@/components/PageHeader";
+import OfflineForm from "@/components/OfflineForm";
 import ReceiptInput from "@/components/ReceiptInput";
 import { btnCls, Card, CurrencySelect, inputCls, labelCls } from "@/components/ui";
 import { dateLabels } from "@/i18n/dictionaries";
@@ -97,7 +98,7 @@ export default async function SpendPage({ searchParams }: { searchParams: Promis
 
         <Card>
           <h2 className="mb-3 font-semibold">＋ {t.sp.quick}</h2>
-          <form action={addSpending} className="space-y-3">
+          <OfflineForm action={addSpending} className="space-y-3" kind="spending" savedText={t.of.savedOffline}>
             <div className="grid grid-cols-[1fr_96px] gap-2">
               <div>
                 <label className={labelCls}>{t.sp.amount}</label>
@@ -124,7 +125,7 @@ export default async function SpendPage({ searchParams }: { searchParams: Promis
             </div>
             <ReceiptInput label={t.sp.receipt} />
             <button className={`${btnCls} w-full`}>{t.sp.add}</button>
-          </form>
+          </OfflineForm>
         </Card>
 
         <section>

@@ -61,7 +61,7 @@ export default async function ForecastPage() {
       </Link>,
     );
   }
-  const wealth = await getWealth(user.id);
+  const wealth = await getWealth(user.id, f);
   if (wealth.total > 0 || wealth.goals.length > 0) {
     const g = wealth.goals.find((x) => x.left > 0);
     tiles.push(

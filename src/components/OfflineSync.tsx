@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { syncOfflineEvent } from "@/app/actions";
+import { syncOffline } from "@/app/actions";
 import { QUEUE_EVENT, readQueue, removeFromQueue, type QueuedEvent } from "@/lib/client/offlineQueue";
 
 type T = { offline: string; queued: string; synced: string; syncing: string };
@@ -25,7 +25,7 @@ export default function OfflineSync({ t }: { t: T }) {
     let sent = 0;
     for (const it of items) {
       try {
-        const id = await syncOfflineEvent(it.entries);
+        const id = await syncOffline(it.kind ?? "event", it.entries);
         // null — пустое название: такое событие отправлять бессмысленно, тоже убираем
         removeFromQueue(it.id);
         if (id) sent++;

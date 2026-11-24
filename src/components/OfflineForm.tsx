@@ -1,18 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { enqueueEvent } from "@/lib/client/offlineQueue";
+import { enqueueEvent, type OfflineKind } from "@/lib/client/offlineQueue";
 
-/** Форма создания события: без интернета сохраняет событие на телефоне вместо отправки. */
+/**
+ * Форма, которая работает без интернета: вместо отправки сохраняет данные на телефоне,
+ * а OfflineSync отправит их, когда появится связь. quiet — без плашки (для маленьких кнопок).
+ */
 export default function OfflineForm({
   action,
   className,
-  savedText,
+  savedText = "",
+  kind = "event",
+  label,
+  quiet = false,
   children,
 }: {
   action: (fd: FormData) => Promise<void>;
   className?: string;
-  savedText: string;
+  savedText?: string;
+  kind?: OfflineKind;
+  label?: string;
+  quiet?: boolean;
   children: React.ReactNode;
 }) {
   const [saved, setSaved] = useState(false);
@@ -23,7 +32,8 @@ export default function OfflineForm({
       onSubmit={(e) => {
         if (navigator.onLine) return;
         e.preventDefault();
-        enqueueEvent(e.currentTarget);
+        enqueueEvent(e.currentTarget, kind, label);
+        if (quiet) return;
         e.currentTarget.reset();
         setSaved(true);
         window.scrollTo({ top: 0, behavior: "smooth" });
