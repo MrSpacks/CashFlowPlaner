@@ -1,7 +1,7 @@
 // Service worker CashFlowPlaner: установка как приложение, работа без интернета, push-уведомления.
-const CACHE = "cfp-v8";
+const CACHE = "cfp-v9";
 // Главные экраны — сохраняем при запуске service worker'а (если пользователь вошёл).
-const WARM = ["/", "/calendar", "/events", "/events/new", "/ideas", "/more", "/more/reminders", "/notifications", "/chats", "/people", "/profile", "/spend", "/wealth", "/search"];
+const WARM = ["/", "/calendar", "/events", "/events/new", "/ideas", "/more", "/more/reminders", "/notifications", "/chats", "/people", "/profile", "/spend", "/wealth", "/search", "/dividends"];
 const LABELS = {
   "/": "📊 Přehled / Прогноз",
   "/calendar": "📅 Kalendář / Календарь",

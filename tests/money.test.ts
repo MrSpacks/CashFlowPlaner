@@ -63,3 +63,33 @@ describe("статистика плана дня", () => {
     expect(s.week.energy).toBe(3);
   });
 });
+
+import { projectDividends, t212ToYahoo } from "@/lib/dividends";
+
+describe("дивиденды", () => {
+  it("тикеры Trading 212 → Yahoo", () => {
+    expect(t212ToYahoo("MCD_US_EQ")).toBe("MCD");
+    expect(t212ToYahoo("BRK.B_US_EQ")).toBe("BRK-B");
+    expect(t212ToYahoo("VOW3d_EQ")).toBe("VOW3.DE");
+    expect(t212ToYahoo("MCp_EQ")).toBe("MC.PA");
+    expect(t212ToYahoo("VUAGl_EQ")).toBe("VUAG.L");
+  });
+  it("квартальные выплаты повторяются через год", () => {
+    const pays = [
+      { date: "2025-12-01", amount: 1.77 },
+      { date: "2026-02-27", amount: 1.77 },
+      { date: "2026-06-01", amount: 1.77 },
+      { date: "2026-09-01", amount: 1.86 },
+    ];
+    const p = projectDividends(pays, "2026-11-26");
+    expect(p.map((x) => x.date)).toEqual(["2026-12-01", "2027-02-27", "2027-06-01", "2027-09-01"]);
+  });
+  it("объявленная будущая выплата не дублируется оценкой", () => {
+    const pays = [
+      { date: "2025-12-01", amount: 1 },
+      { date: "2026-12-01", amount: 1.1 },
+    ];
+    const p = projectDividends(pays, "2026-11-26");
+    expect(p).toEqual([{ date: "2026-12-01", amount: 1.1, announced: true }]);
+  });
+});

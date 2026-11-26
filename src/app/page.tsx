@@ -5,12 +5,13 @@ import { btnCls, Card, cardBaseCls } from "@/components/ui";
 import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/lib/auth";
 import { buildUserForecast } from "@/lib/finance";
-import { formatMoney, monthLabel, todayISO } from "@/lib/forecast";
+import { formatDate, formatMoney, monthLabel, todayISO } from "@/lib/forecast";
 import { getReminders } from "@/lib/reminders";
 import { canUseDailyPlan, getDailyPlan, planProgress, userToday } from "@/lib/dailyPlan";
 import { canUseInvest, latestSnapshot } from "@/lib/invest";
 import { monthBudget } from "@/lib/spending";
 import { getWealth } from "@/lib/wealth";
+import { dividendCalendar } from "@/lib/dividends";
 import { canUseTrips, getTripPrefs, listTripOptions, upcomingWeekends, type TripOption } from "@/lib/trips";
 
 export const dynamic = "force-dynamic";
@@ -91,6 +92,21 @@ export default async function ForecastPage() {
       </Link>,
     );
   }
+  if (inv) {
+    const dv = await dividendCalendar(user.id, todayISO());
+    if (dv && dv.yearTotal > 0) {
+      const nx = dv.events.find((e) => e.date >= todayISO());
+      tiles.push(
+        <Link key="div" href="/dividends" className={tileCls}>
+          <span className="truncate text-xs text-slate-500">💵 {t.dv.tile}</span>
+          <span className="mt-1 truncate text-base font-semibold tabular-nums">
+            {t.dv.tileYear.replace("{x}", `~${formatMoney(dv.yearTotal, dv.base, intl)}`)}
+          </span>
+          {nx && <span className="truncate text-xs text-slate-500">{t.dv.next.replace("{d}", formatDate(nx.date, intl))}</span>}
+        </Link>,
+      );
+    }
+  }
   if (trip) {
     tiles.push(
       <Link key="trip" href="/ideas#trips" className={tileCls}>
@@ -105,7 +121,7 @@ export default async function ForecastPage() {
     );
   }
   const tilesRow = tiles.length > 0 && (
-    <div className={`cfp-stagger mx-4 mb-4 grid gap-2 ${tiles.length === 1 ? "grid-cols-1" : tiles.length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>{tiles}</div>
+    <div className={`cfp-stagger mx-4 mb-4 grid gap-2 ${tiles.length === 1 ? "grid-cols-1" : tiles.length % 3 === 0 ? "grid-cols-3" : "grid-cols-2"}`}>{tiles}</div>
   );
   const money = (n: number) => formatMoney(n, f.base, intl);
 

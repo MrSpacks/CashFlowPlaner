@@ -75,6 +75,7 @@ export default async function MorePage() {
           <li><ListRow href="/wealth" icon="💰" title={t.wl.title} /></li>
           <li><ListRow href="/more/balance" icon="🏦" title={t.more.balance} /></li>
           {canUseInvest(user.id) && <li><ListRow href="/more/invest" icon="📈" title={t.inv.title} /></li>}
+          {canUseInvest(user.id) && <li><ListRow href="/dividends" icon="💵" title={t.dv.title} /></li>}
           <li><ListRow href="/more/income" icon="💵" title={t.more.incomes} /></li>
           <li><ListRow href="/more/expenses" icon="🔁" title={t.more.fixed} /></li>
           <li><ListRow href="/more/sharing" icon="🔗" title={t.sh.title} /></li>

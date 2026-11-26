@@ -95,6 +95,11 @@ export default async function InvestPage() {
               </div>
             </Card>
 
+            <a href="/dividends" className="cfp-press flex items-center justify-between rounded-2xl bg-white p-4 text-sm font-medium shadow-sm ring-1 ring-slate-200">
+              <span>💵 {t.dv.title}</span>
+              <span className="text-slate-300">›</span>
+            </a>
+
             {snap.positions.length > 0 && (
               <section>
                 <h2 className="mb-2 font-semibold">{t.inv.positions}</h2>

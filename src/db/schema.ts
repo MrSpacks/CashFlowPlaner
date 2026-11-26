@@ -579,3 +579,12 @@ export const savingsGoals = pgTable("savings_goals", {
   deadline: date("deadline"),
   createdAt: created(),
 });
+
+/** Кэш истории дивидендов по тикеру (Yahoo Finance), обновляется раз в неделю. payments: [{date, amount}] на 1 акцию. */
+export const dividendHistory = pgTable("dividend_history", {
+  symbol: text("symbol").primaryKey(),
+  currency: char("currency", { length: 3 }),
+  payments: jsonb("payments").$type<{ date: string; amount: number }[]>().default([]).notNull(),
+  ok: boolean("ok").default(true).notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
+});
