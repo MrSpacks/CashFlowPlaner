@@ -132,7 +132,12 @@ export async function refreshAllMorning() {
   let n = 0;
   for (const a of accs) {
     if (!canUseInvest(a.ownerId)) continue;
-    await refreshSnapshot(a.ownerId, 60);
+    const snap = await refreshSnapshot(a.ownerId, 60);
+    // Заодно обновить историю дивидендов (кэш на неделю) — календарь откроется быстро.
+    if (snap) {
+      const { dividendHistoryFor, t212ToYahoo } = await import("./dividends");
+      await dividendHistoryFor(snap.positions.map((p) => t212ToYahoo(p.ticker))).catch(() => null);
+    }
     n++;
   }
   return n;
